@@ -2,11 +2,17 @@ import numpy as np
 from statsmodels.stats.contingency_tables import mcnemar
 from statsmodels.stats.proportion import proportions_ztest
 
+from .types import PowerBounds, PowerOutput
+
 
 # Could Desi review this? The part of z-test is pure GPT
 def compute_power(
-    prob_table, dataset_size, alpha=0.05, r=40, test_type="mcnemar"
-):
+    prob_table: np.ndarray,
+    dataset_size: int,
+    alpha=0.05,
+    r=40,
+    test_type="mcnemar",
+) -> PowerOutput:
     if test_type == "mcnemar" and prob_table[0, 1] == prob_table[1, 0]:
         return 0, 0, 0, 0
 
@@ -63,17 +69,19 @@ def compute_power(
         np.mean([np.sign(d) != true_sign for d, _ in sig]) if sig else np.nan
     )
 
-    return power, mean_eff, type_m, type_s
+    return PowerOutput(
+        power=power, mean_eff=mean_eff, type_m=type_m, type_s=type_s
+    )
 
 
 def power_bounds(
-    baseline_acc,
-    delta_acc,
-    dataset_size,
-    alpha=0.05,
-    r=5000,
-    test_type="mcnemar",
-):
+    baseline_acc: float,
+    delta_acc: float,
+    dataset_size: int,
+    alpha: float = 0.05,
+    r: int = 5000,
+    test_type: str = "mcnemar",
+) -> PowerBounds:
     acc1, acc2 = baseline_acc, baseline_acc + delta_acc
     # Upper‐bound (max agreement)
     p_both_corr = min(acc1, acc2)
@@ -83,7 +91,7 @@ def power_bounds(
         pu_tab = np.array([[p_both_inc, 0.0], [p_diff, p_both_corr]])
     else:
         pu_tab = np.array([[p_both_inc, p_diff], [0.0, p_both_corr]])
-    pu, mu, tmu, tsu = compute_power(pu_tab, dataset_size, alpha, r, test_type)
+    upper_bound = compute_power(pu_tab, dataset_size, alpha, r, test_type)
 
     # Lower‐bound (max disagreement)
     if (2 - acc1 - acc2) <= 1:
@@ -97,15 +105,6 @@ def power_bounds(
         only2 = acc2
         p_neither = 1 - only1 - only2
     pl_tab = np.array([[p_neither, only1], [only2, p_both]])
-    pl, ml, tml, tsl = compute_power(pl_tab, dataset_size, alpha, r, test_type)
+    lower_bound = compute_power(pl_tab, dataset_size, alpha, r, test_type)
 
-    return {
-        "upper_power": pu,
-        "upper_mean": mu,
-        "upper_typeM": tmu,
-        "upper_typeS": tsu,
-        "lower_power": pl,
-        "lower_mean": ml,
-        "lower_typeM": tml,
-        "lower_typeS": tsl,
-    }
+    return PowerBounds(upper=upper_bound, lower=lower_bound)
