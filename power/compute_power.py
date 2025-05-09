@@ -9,9 +9,9 @@ from .types import PowerBounds, PowerOutput
 def compute_power(
     prob_table: np.ndarray,
     dataset_size: int,
-    alpha=0.05,
-    r=40,
-    test_type="mcnemar",
+    alpha: float = 0.05,
+    r: int = 40,
+    test_type: str = "mcnemar",
 ) -> PowerOutput:
     if test_type == "mcnemar" and prob_table[0, 1] == prob_table[1, 0]:
         return 0, 0, 0, 0
@@ -30,19 +30,18 @@ def compute_power(
             pval = res.pvalue
 
         elif test_type == "ztest":
-            # Unpaired proportions: success counts and sample sizes
-            np.array([samp[0].sum(), samp[1].sum()])
-            nobs = np.array(
-                [samp[0].sum() + samp[0][1], samp[1].sum() + samp[1][0]]
-            )
-            # Avoid division by zero or ill-conditioned sampling
-            if np.any(nobs == 0):
-                continue
+            n1, n2 = samp[0].sum(), samp[1].sum()
+            if n1 == 0 or n2 == 0:
+                continue  # skip iteration due to invalid sample
+
+            # Proportion of "successes"
+            prop1 = samp[0][1] / n1
+            prop2 = samp[1][1] / n2
+            diff = prop1 - prop2
+
             pval = proportions_ztest(
-                count=[samp[0][1], samp[1][1]],
-                nobs=[samp[0].sum(), samp[1].sum()],
+                count=[samp[0][1], samp[1][1]], nobs=[n1, n2]
             )[1]
-            diff = (samp[0][1] / samp[0].sum()) - (samp[1][1] / samp[1].sum())
 
         else:
             raise ValueError("Unsupported test_type. Use 'mcnemar' or 'ztest'.")
@@ -50,20 +49,30 @@ def compute_power(
         pvals.append(pval)
         diffs.append(diff)
 
-    # Ground-truth difference (note: assumes true probs known)
+    # Compute true effect size
     if test_type == "mcnemar":
         true_diff = prob_table[0, 1] - prob_table[1, 0]
     else:  # ztest
-        rate_1 = prob_table[0, 1] / prob_table[0].sum()
-        rate_2 = prob_table[1, 1] / prob_table[1].sum()
-        true_diff = rate_1 - rate_2
+        sum0, sum1 = prob_table[0].sum(), prob_table[1].sum()
+        if sum0 == 0 or sum1 == 0:
+            true_diff = np.nan
+        else:
+            rate_1 = prob_table[0, 1] / sum0
+            rate_2 = prob_table[1, 1] / sum1
+            true_diff = rate_1 - rate_2
 
-    true_sign = np.sign(true_diff)
+    true_sign = np.sign(true_diff) if not np.isnan(true_diff) else 0
     sig = [(d, p) for d, p in zip(diffs, pvals) if p <= alpha]
-    power = sum(1 for d, p in sig if np.sign(d) == true_sign) / r
-    mean_eff = np.mean(diffs)
+    power = (
+        sum(1 for d, _ in sig if np.sign(d) == true_sign) / r
+        if r > 0
+        else np.nan
+    )
+    mean_eff = np.mean(diffs) if diffs else np.nan
     type_m = (
-        np.mean([abs(d) / abs(true_diff) for d, _ in sig]) if sig else np.nan
+        np.mean([abs(d) / abs(true_diff) for d, _ in sig])
+        if sig and true_diff != 0
+        else np.nan
     )
     type_s = (
         np.mean([np.sign(d) != true_sign for d, _ in sig]) if sig else np.nan
