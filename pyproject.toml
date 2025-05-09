@@ -7,8 +7,9 @@ requires-python = ">=3.10"
 license = { text = "Apache" }
 authors = [
     { name = "Angelo Basile", email = "me@angelobasile.it" },
-    { name = "José Ángel González", email = "ja.gonzalez.barba@gmail.com" },
-    { name = "Areg Mikael Sarvazyan", email = "asarvazyan@symanto.com" }
+    { name = "Desi R. Ivanova", email = "desi.ivanova@stats.ox.ac.uk" },
+    { name = "Areg Mikael Sarvazyan", email = "asarvazyan@symanto.com" },
+    { name = "José Ángel González", email = "ja.gonzalez.barba@gmail.com" }
 ]
 keywords = ["statistics", "power-analysis", "hypothesis-testing"]
 classifiers = [
