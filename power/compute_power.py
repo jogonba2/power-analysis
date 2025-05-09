@@ -2,10 +2,12 @@ import numpy as np
 from statsmodels.stats.contingency_tables import mcnemar
 from statsmodels.stats.proportion import proportions_ztest
 
+from .logging import get_logger, log
 from .types import PowerBounds, PowerOutput
 
+_logger = get_logger(__name__)
 
-# Could Desi review this? The part of z-test is pure GPT
+
 def compute_power(
     prob_table: np.ndarray,
     dataset_size: int,
@@ -14,7 +16,14 @@ def compute_power(
     test_type: str = "mcnemar",
 ) -> PowerOutput:
     if test_type == "mcnemar" and prob_table[0, 1] == prob_table[1, 0]:
-        return 0, 0, 0, 0
+        log(
+            _logger.info,
+            "The null hypothesis holds in McNemar's test for this sample; "
+            "since there is no difference between the two models, the "
+            "statistical power will be 0.",
+            "yellow",
+        )
+        return PowerOutput(power=0.0, mean_eff=0.0, type_m=0.0, type_s=0.0)
 
     pvals, diffs = [], []
     flat_p = prob_table.reshape(

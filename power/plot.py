@@ -1,10 +1,10 @@
 import pandas as pd
-from plotnine import *
+import plotnine as pn
 
 from .types import PowerBounds
 
 
-def plot_bounds(data: PowerBounds) -> ggplot:
+def plot_bounds(data: PowerBounds) -> pn.ggplot:
     df = pd.DataFrame(
         {
             "metric": ["power", "mean", "typeM", "typeS"] * 2,
@@ -22,23 +22,25 @@ def plot_bounds(data: PowerBounds) -> ggplot:
         }
     )
     return (
-        ggplot(df, aes(x="metric", y="value", fill="group"))
-        + geom_col(position=position_dodge(width=0.7), width=0.6, color="black")
-        + geom_text(
-            aes(label="value.round(4)"),
-            position=position_dodge(width=0.7),
+        pn.ggplot(df, pn.aes(x="metric", y="value", fill="group"))
+        + pn.geom_col(
+            position=pn.position_dodge(width=0.7), width=0.6, color="black"
+        )
+        + pn.geom_text(
+            pn.aes(label="value.round(4)"),
+            position=pn.position_dodge(width=0.7),
             va="bottom",
             size=9,
             format_string="{:.4f}",
         )
-        + scale_fill_manual(values=["#1f77b4", "#ff7f0e"])
-        + labs(x="Metric", y="Value")
-        + theme_minimal()
-        + theme(
-            plot_title=element_text(size=14, face="bold", ha="center"),
-            axis_title=element_text(size=12, face="bold"),
-            axis_text=element_text(size=10),
-            legend_title=element_blank(),
+        + pn.scale_fill_manual(values=["#1f77b4", "#ff7f0e"])
+        + pn.labs(x="Metric", y="Value")
+        + pn.theme_minimal()
+        + pn.theme(
+            plot_title=pn.element_text(size=14, face="bold", ha="center"),
+            axis_title=pn.element_text(size=12, face="bold"),
+            axis_text=pn.element_text(size=10),
+            legend_title=pn.element_blank(),
             legend_position="top",
             figure_size=(10, 6),
         )
