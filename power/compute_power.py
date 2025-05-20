@@ -14,6 +14,7 @@ def compute_power(
     alpha: float = 0.05,
     r: int = 40,
     test_type: str = "mcnemar",
+    seed: int = 13,
 ) -> PowerOutput:
     if test_type == "mcnemar" and prob_table[0, 1] == prob_table[1, 0]:
         log(
@@ -30,8 +31,9 @@ def compute_power(
         4,
     )
 
+    rng = np.random.default_rng(seed)
     for _ in range(r):
-        samp = np.random.multinomial(dataset_size, flat_p).reshape(2, 2)
+        samp = rng.multinomial(dataset_size, flat_p).reshape(2, 2)
 
         if test_type == "mcnemar":
             diff = (samp[0, 1] - samp[1, 0]) / dataset_size
@@ -126,3 +128,7 @@ def power_bounds(
     lower_bound = compute_power(pl_tab, dataset_size, alpha, r, test_type)
 
     return PowerBounds(upper=upper_bound, lower=lower_bound)
+
+
+if __name__ == "__main__":
+    a = power_bounds(0.5, 0.2, 1000, alpha=0.05, r=500, test_type="mcnemar")

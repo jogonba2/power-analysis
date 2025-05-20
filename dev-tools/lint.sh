@@ -3,6 +3,6 @@
 set -e
 set -x
 
-mypy "power"
-flake8 "power" --ignore=E501,W503,E203,E402,E704
-black "power" --check -l 80
+mypy "power" "tests"
+flake8 "power" "tests" --ignore=E501,W503,E203,E402,E704
+black "power" "tests" --check -l 80
