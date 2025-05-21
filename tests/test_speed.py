@@ -13,14 +13,6 @@ from power.compute_power import compute_power
 from power.types import PowerOutput
 
 from .test import data_generating_fn  # or wherever they live
-from .test import (
-    alpha,
-    effect_test_fn,
-    hypothesis_test_fn,
-    seed,
-    true_effect_fn,
-    true_prob_table,
-)
 
 
 @pytest.mark.parametrize("iterations", [5, 10, 11])

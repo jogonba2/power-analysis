@@ -47,13 +47,14 @@ def data_generating_fn(true_prob_table):
     return partial(dgps.get("dgp::contingency_table"), dgp_args=dgp_args)
 
 
-def true_effect(true_prob_table: np.ndarray) -> float:
-    return true_prob_table[0, 1] - true_prob_table[1, 0]
-
-
 @pytest.fixture
 def true_effect_fn(true_prob_table):
-    return partial(true_effect, true_prob_table=true_prob_table)
+    return partial(
+        effects.get("effect::cohens_g"),
+        sample=true_prob_table,
+        true_effect=True,
+        dataset_size=sum(true_prob_table),
+    )
 
 
 @pytest.mark.parametrize(["seed", "iterations", "alpha"], [(13, 11, 0.05)])
