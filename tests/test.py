@@ -64,13 +64,13 @@ def compute_power(
     data_generating_fn,
     hypothesis_test_fn,
     true_effect_fn,
-    repetitions,
+    iterations,
     alpha,
     seed,
 ):
     rng = np.random.default_rng(seed=seed)
     p_values, effects = [], []
-    for _ in range(repetitions):
+    for _ in range(iterations):
         dgp = data_generating_fn(rng=rng)
         test_parameters = StatsTestParameters(
             simulated_sample=dgp.data, exact=False
@@ -87,8 +87,8 @@ def compute_power(
     sig = [(d, p) for d, p in zip(effects, p_values) if p <= alpha]
 
     power = (
-        sum(1 for d, _ in sig if np.sign(d) == true_sign) / repetitions
-        if repetitions > 0
+        sum(1 for d, _ in sig if np.sign(d) == true_sign) / iterations
+        if iterations > 0
         else np.nan
     )
     mean_eff = np.mean(effects) if effects.any() else np.nan
@@ -107,7 +107,7 @@ def compute_power(
 
 
 @pytest.fixture
-def repetitions():
+def iterations():
     return 11
 
 
@@ -120,7 +120,7 @@ def test_compute_power(
     data_generating_fn,
     hypothesis_test_fn,
     true_effect_fn,
-    repetitions,
+    iterations,
     alpha,
     seed,
     expected_output,
@@ -136,7 +136,7 @@ def test_compute_power(
         data_generating_fn,
         hypothesis_test_fn,
         true_effect_fn,
-        repetitions,
+        iterations,
         alpha,
         seed,
     )
