@@ -4,6 +4,7 @@ The test here is done thinking on McNemar test, but it is general enough to be e
 
 from dataclasses import dataclass
 from functools import partial
+from typing import Callable
 
 import numpy as np
 import pytest
@@ -54,22 +55,31 @@ def expected_output() -> PowerOutput:
     )
 
 
-def mcnemar_test(args: StatsTestParameters) -> StatsTestOutput:
+def mcnemar_test(
+    args: StatsTestParameters, effect_fn: Callable
+) -> StatsTestOutput:
     """
     Runs the statistical test and returns p value and effect.
     """
     p_value = mcnemar(table=args.simulated_sample, exact=args.exact).pvalue
     # This is one of many ways of doing this. Now we are doing (a-b)/N
     # We have to think how to parameterize this because it could be another fn at some point
-    effect = (
-        args.simulated_sample[0, 1] - args.simulated_sample[1, 0]
-    ) / args.dataset_size
+    effect = effect_fn(args.simulated_sample, args.dataset_size)
     return StatsTestOutput(p_value=p_value, effect=effect)
 
 
+def cohens_g(simulated_sample: np.ndarray, dataset_size: int):
+    return (simulated_sample[0, 1] - simulated_sample[1, 0]) / dataset_size
+
+
 @pytest.fixture
-def hypothesis_test_fn():
-    return mcnemar_test
+def effect_test_fn():
+    return cohens_g
+
+
+@pytest.fixture
+def hypothesis_test_fn(effect_test_fn):
+    return partial(mcnemar_test, effect_fn=effect_test_fn)
 
 
 def contingency_table(
