@@ -19,6 +19,8 @@ def cohens_g(sample: np.ndarray, dataset_size: int, true_effect: bool):
 def risk_difference(sample: np.ndarray, dataset_size: int, true_effect: bool):
     """
     Effect size for an *unpaired* z-test.
+
+    TODO: can we use this https://www.statsmodels.org/dev/generated/statsmodels.stats.proportion.proportion_effectsize.html ?
     """
     succ1, succ2 = sample[0, 1], sample[1, 1]
     diff = succ1 - succ2

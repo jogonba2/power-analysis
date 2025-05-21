@@ -40,9 +40,9 @@ def unpaired_ztest(
 
     p_value = proportions_ztest(count=count, nobs=nobs)
 
-    # TODO effect=...
-
-    return StatsTestOutput(p_value=p_value, effect=0.0)
+    # TODO: Discuss with Desi what effects should be used (+ signature) for the unpaired ztest
+    effect = effect_fn(args.simulated_sample, args.dataset_size, False)
+    return StatsTestOutput(p_value=p_value, effect=effect)
 
 
 @stats_tests.register("stats_test::paired_z")

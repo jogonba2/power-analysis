@@ -14,6 +14,14 @@ def compute_power(
     alpha,
     seed,
 ):
+    true_effect = true_effect_fn()
+
+    # If the true effect is 0, Null is true, so return NaNs
+    if true_effect == 0.0:
+        return PowerOutput(
+            power=np.nan, mean_eff=np.nan, type_m=np.nan, type_s=np.nan
+        )
+
     rng = np.random.default_rng(seed=seed)
     p_values, effects = [], []
     for _ in range(iterations):
