@@ -17,6 +17,17 @@ from power.stats_tests import stats_tests
 from power.types import DGPParameters
 
 
+from functools import partial
+import numpy as np
+
+# Import the power analysis utility functions from the package
+from power.compute_power import compute_power 
+from power.dgps import dgps
+from power.effects import effects
+from power.stats_tests import stats_tests
+from power.types import DGPParameters
+
+
 if __name__ == "__main__":
     # Define a 2x2 contingency table representing true conditional probabilities
     true_prob_table = np.array([[0.0, 0.5], [0.3, 0.2]], dtype="float32")
@@ -45,9 +56,9 @@ if __name__ == "__main__":
     # Prepare the function to compute the *true* effect size for benchmarking
     true_effect_fn = partial(
         effect_fn,
-        sample=true_prob_table,
+        true_prob_table=true_prob_table,
+        sample=None,
         dataset_size=dataset_size,
-        true_effect=True,  # Indicates this is the ground-truth effect
     )
 
     # Define experiment parameters
