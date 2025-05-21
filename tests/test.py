@@ -56,21 +56,7 @@ def true_effect_fn(true_prob_table):
     return partial(true_effect, true_prob_table=true_prob_table)
 
 
-@pytest.fixture
-def seed():
-    return 13
-
-
-@pytest.fixture
-def iterations():
-    return 11
-
-
-@pytest.fixture
-def alpha():
-    return 0.05
-
-
+@pytest.mark.parametrize(["seed", "iterations", "alpha"], [(13, 11, 0.05)])
 def test_compute_power(
     data_generating_fn,
     hypothesis_test_fn,

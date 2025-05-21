@@ -12,9 +12,9 @@ import pytest
 from power.compute_power import compute_power
 from power.types import PowerOutput
 
+from .test import data_generating_fn  # or wherever they live
 from .test import (
     alpha,
-    data_generating_fn,  # or wherever they live
     effect_test_fn,
     hypothesis_test_fn,
     seed,
