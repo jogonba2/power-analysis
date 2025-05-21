@@ -17,17 +17,6 @@ from power.stats_tests import stats_tests
 from power.types import DGPParameters
 
 
-from functools import partial
-import numpy as np
-
-# Import the power analysis utility functions from the package
-from power.compute_power import compute_power 
-from power.dgps import dgps
-from power.effects import effects
-from power.stats_tests import stats_tests
-from power.types import DGPParameters
-
-
 if __name__ == "__main__":
     # Define a 2x2 contingency table representing true conditional probabilities
     true_prob_table = np.array([[0.0, 0.5], [0.3, 0.2]], dtype="float32")
