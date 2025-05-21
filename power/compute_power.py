@@ -82,7 +82,7 @@ def compute_power(
         if r > 0
         else np.nan
     )
-    mean_eff = np.mean(diffs) if diffs.any() else np.nan
+    mean_eff = np.mean(diffs) if diffs.any() else np.nan  # type: ignore[attr-defined]
     type_m = (
         np.mean([abs(d) / abs(true_diff) for d, _ in sig])
         if sig and true_diff != 0

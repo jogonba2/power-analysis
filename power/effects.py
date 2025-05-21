@@ -13,3 +13,13 @@ def cohens_g(sample: np.ndarray, dataset_size: int, true_effect: bool):
     if true_effect:
         return sample[0, 1] - sample[1, 0]
     return (sample[0, 1] - sample[1, 0]) / dataset_size
+
+
+@effects.register("effect::risk_difference")
+def risk_difference(sample: np.ndarray, dataset_size: int, true_effect: bool):
+    """
+    Effect size for an *unpaired* z-test.
+    """
+    succ1, succ2 = sample[0, 1], sample[1, 1]
+    diff = succ1 - succ2
+    return diff / dataset_size
