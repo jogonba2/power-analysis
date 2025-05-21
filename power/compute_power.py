@@ -93,6 +93,8 @@ _logger = get_logger(__name__)
 #     return PowerOutput(
 #         power=power, mean_eff=mean_eff, type_m=type_m, type_s=type_s
 #     )
+
+
 def compute_power(
     data_generating_fn,
     hypothesis_test_fn,
