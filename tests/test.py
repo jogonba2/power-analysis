@@ -51,8 +51,8 @@ def data_generating_fn(true_prob_table):
 def true_effect_fn(true_prob_table):
     return partial(
         effects.get("effect::cohens_g"),
-        sample=true_prob_table,
-        true_effect=True,
+        true_prob_table=true_prob_table,
+        sample=None,
         dataset_size=sum(true_prob_table),
     )
 

@@ -19,7 +19,11 @@ def mcnemar_test(
     p_value = mcnemar(table=args.simulated_sample, exact=args.exact).pvalue
     # This is one of many ways of doing this. Now we are doing (a-b)/N
     # We have to think how to parameterize this because it could be another fn at some point
-    effect = effect_fn(args.simulated_sample, args.dataset_size, False)
+    effect = effect_fn(
+        sample=args.simulated_sample,
+        true_prob_table=None,
+        dataset_size=args.dataset_size,
+    )
     return StatsTestOutput(p_value=p_value, effect=effect)
 
 
@@ -41,7 +45,11 @@ def unpaired_ztest(
     p_value = proportions_ztest(count=count, nobs=nobs)
 
     # TODO: Discuss with Desi what effects should be used (+ signature) for the unpaired ztest
-    effect = effect_fn(args.simulated_sample, args.dataset_size, False)
+    effect = effect_fn(
+        sample=args.simulated_sample,
+        true_prob_table=None,
+        dataset_size=args.dataset_size,
+    )
     return StatsTestOutput(p_value=p_value, effect=effect)
 
 

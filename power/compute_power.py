@@ -24,6 +24,8 @@ def compute_power(
 
     rng = np.random.default_rng(seed=seed)
     p_values, effects = [], []
+
+    # TODO: Multiprocessing in the for loop
     for _ in range(iterations):
         dgp = data_generating_fn(rng=rng)
         test_parameters = StatsTestParameters(
@@ -34,8 +36,6 @@ def compute_power(
         effects.append(output.effect)
     p_values = np.array(p_values)
     effects = np.array(effects)
-
-    true_effect = true_effect_fn()
 
     true_sign = np.sign(true_effect) if not np.isnan(true_effect) else 0
     sig = [(d, p) for d, p in zip(effects, p_values) if p <= alpha]
