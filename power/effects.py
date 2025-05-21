@@ -51,7 +51,7 @@ def risk_difference(
         sample is None
     ), "Exactly one of 'true_prob_table' or 'sample' must be provided, but not both or neither."
     data = true_prob_table if true_prob_table is not None else sample
-    number_of_successes_model_1 = data[:, 1].sum()
-    number_of_successes_model_2 = data[1:, :].sum()
-    diff = number_of_successes_model_1 - number_of_successes_model_2
+    number_of_successes_model_a = data[:, 1].sum()
+    number_of_successes_model_b = data[1:, :].sum()
+    diff = number_of_successes_model_a - number_of_successes_model_b
     return diff / dataset_size
