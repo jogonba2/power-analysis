@@ -12,12 +12,6 @@ class PowerOutput:
 
 
 @dataclass
-class PowerBounds:
-    upper: PowerOutput
-    lower: PowerOutput
-
-
-@dataclass
 class DGPParameters:
     true_prob_table: np.ndarray
     dataset_size: int
