@@ -28,6 +28,7 @@ dependencies = [
     "statsmodels",
     "datasets",
     "plotnine",
+    "catalogue"
 ]
 
 [project.optional-dependencies]

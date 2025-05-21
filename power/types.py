@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+import numpy as np
+
 
 @dataclass
 class PowerOutput:
@@ -13,3 +15,34 @@ class PowerOutput:
 class PowerBounds:
     upper: PowerOutput
     lower: PowerOutput
+
+
+@dataclass
+class DGPParameters:
+    true_prob_table: np.ndarray
+    dataset_size: int
+
+
+@dataclass
+class SimulatedSample:
+    data: np.ndarray
+
+
+@dataclass
+class StatsTestParameters:
+    """
+    Base class for parameters for the test statistic function.
+    """
+
+    simulated_sample: SimulatedSample
+    exact: bool
+
+    @property
+    def dataset_size(self):
+        return np.sum(self.simulated_sample.data)
+
+
+@dataclass
+class StatsTestOutput:
+    p_value: float
+    effect: float

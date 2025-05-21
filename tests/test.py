@@ -2,47 +2,15 @@
 The test here is done thinking on McNemar test, but it is general enough to be extended to other statistics.
 """
 
-from dataclasses import dataclass
 from functools import partial
-from typing import Callable
 
 import numpy as np
 import pytest
-from numpy.random import Generator
-from statsmodels.stats.contingency_tables import mcnemar
 
-from power.types import PowerOutput
-
-
-@dataclass
-class DGPParameters:
-    true_prob_table: np.ndarray
-    dataset_size: int
-
-
-@dataclass
-class SimulatedSample:
-    data: np.ndarray
-
-
-@dataclass
-class StatsTestParameters:
-    """
-    Base class for parameters for the test statistic function.
-    """
-
-    simulated_sample: SimulatedSample
-    exact: bool
-
-    @property
-    def dataset_size(self):
-        return np.sum(self.simulated_sample.data)
-
-
-@dataclass
-class StatsTestOutput:
-    p_value: float
-    effect: float
+from power.dgps import dgps
+from power.effects import effects
+from power.stats_tests import stats_tests
+from power.types import DGPParameters, PowerOutput, StatsTestParameters
 
 
 @pytest.fixture
@@ -55,40 +23,16 @@ def expected_output() -> PowerOutput:
     )
 
 
-def mcnemar_test(
-    args: StatsTestParameters, effect_fn: Callable
-) -> StatsTestOutput:
-    """
-    Runs the statistical test and returns p value and effect.
-    """
-    p_value = mcnemar(table=args.simulated_sample, exact=args.exact).pvalue
-    # This is one of many ways of doing this. Now we are doing (a-b)/N
-    # We have to think how to parameterize this because it could be another fn at some point
-    effect = effect_fn(args.simulated_sample, args.dataset_size)
-    return StatsTestOutput(p_value=p_value, effect=effect)
-
-
-def cohens_g(simulated_sample: np.ndarray, dataset_size: int):
-    return (simulated_sample[0, 1] - simulated_sample[1, 0]) / dataset_size
-
-
 @pytest.fixture
 def effect_test_fn():
-    return cohens_g
+    return effects.get("effect::cohens_g")
 
 
 @pytest.fixture
 def hypothesis_test_fn(effect_test_fn):
-    return partial(mcnemar_test, effect_fn=effect_test_fn)
-
-
-def contingency_table(
-    dgp_args: DGPParameters, rng: Generator
-) -> SimulatedSample:
-    data = rng.multinomial(
-        dgp_args.dataset_size, dgp_args.true_prob_table.flatten()
-    ).reshape(2, 2)
-    return SimulatedSample(data=data)
+    return partial(
+        stats_tests.get("stats_test::mcnemar"), effect_fn=effect_test_fn
+    )
 
 
 @pytest.fixture
@@ -99,7 +43,7 @@ def true_prob_table():
 @pytest.fixture
 def data_generating_fn(true_prob_table):
     dgp_args = DGPParameters(true_prob_table=true_prob_table, dataset_size=1000)
-    return partial(contingency_table, dgp_args=dgp_args)
+    return partial(dgps.get("dgp::contingency_table"), dgp_args=dgp_args)
 
 
 def true_effect(true_prob_table: np.ndarray) -> float:
