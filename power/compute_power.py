@@ -60,6 +60,8 @@ def compute_power(
         pvals.append(pval)
         diffs.append(diff)
 
+    pvals = np.array(pvals)
+    diffs = np.array(diffs)
     # Compute true effect size
     if test_type == "mcnemar":
         true_diff = prob_table[0, 1] - prob_table[1, 0]
@@ -74,12 +76,13 @@ def compute_power(
 
     true_sign = np.sign(true_diff) if not np.isnan(true_diff) else 0
     sig = [(d, p) for d, p in zip(diffs, pvals) if p <= alpha]
+
     power = (
         sum(1 for d, _ in sig if np.sign(d) == true_sign) / r
         if r > 0
         else np.nan
     )
-    mean_eff = np.mean(diffs) if diffs else np.nan
+    mean_eff = np.mean(diffs) if diffs.any() else np.nan
     type_m = (
         np.mean([abs(d) / abs(true_diff) for d, _ in sig])
         if sig and true_diff != 0
@@ -108,9 +111,13 @@ def power_bounds(
     p_diff = abs(acc1 - acc2)
     p_both_inc = 1 - max(acc1, acc2)
     if acc2 > acc1:
-        pu_tab = np.array([[p_both_inc, 0.0], [p_diff, p_both_corr]])
+        pu_tab = np.array(
+            [[p_both_inc, 0.0], [p_diff, p_both_corr]], dtype="float32"
+        )
     else:
-        pu_tab = np.array([[p_both_inc, p_diff], [0.0, p_both_corr]])
+        pu_tab = np.array(
+            [[p_both_inc, p_diff], [0.0, p_both_corr]], dtype="float32"
+        )
     upper_bound = compute_power(pu_tab, dataset_size, alpha, r, test_type)
 
     # Lower‐bound (max disagreement)
@@ -124,11 +131,7 @@ def power_bounds(
         only1 = acc1
         only2 = acc2
         p_neither = 1 - only1 - only2
-    pl_tab = np.array([[p_neither, only1], [only2, p_both]])
+    pl_tab = np.array([[p_neither, only1], [only2, p_both]], dtype="float32")
     lower_bound = compute_power(pl_tab, dataset_size, alpha, r, test_type)
 
     return PowerBounds(upper=upper_bound, lower=lower_bound)
-
-
-if __name__ == "__main__":
-    a = power_bounds(0.5, 0.2, 1000, alpha=0.05, r=500, test_type="mcnemar")

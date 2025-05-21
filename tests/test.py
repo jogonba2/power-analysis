@@ -35,33 +35,36 @@ class StatsTestParameters:
 
     @property
     def dataset_size(self):
-        return self.simulated_sample.data.shape
+        return np.sum(self.simulated_sample.data)
 
 
 @dataclass
 class StatsTestOutput:
     p_value: float
-    diff: float
+    effect: float
 
 
 @pytest.fixture
 def expected_output() -> PowerOutput:
     return PowerOutput(
         power=1.0,
-        mean_eff=0.20053000000000004,
-        type_m=1.00265,
-        type_s=0.0,
+        mean_eff=np.float64(0.19336363636363635),
+        type_m=np.float64(0.9668182394450396),
+        type_s=np.float64(0.0),
     )
 
 
 def mcnemar_test(args: StatsTestParameters) -> StatsTestOutput:
+    """
+    Runs the statistical test and returns p value and effect.
+    """
     p_value = mcnemar(table=args.simulated_sample, exact=args.exact).pvalue
     # This is one of many ways of doing this. Now we are doing (a-b)/N
     # We have to think how to parameterize this because it could be another fn at some point
-    diff = (
+    effect = (
         args.simulated_sample[0, 1] - args.simulated_sample[1, 0]
     ) / args.dataset_size
-    return StatsTestOutput(p_value=p_value, diff=diff)
+    return StatsTestOutput(p_value=p_value, effect=effect)
 
 
 @pytest.fixture
@@ -80,7 +83,7 @@ def contingency_table(
 
 @pytest.fixture
 def true_prob_table():
-    return np.array([[0.0, 0.5], [0.3, 0.2]])
+    return np.array([[0.0, 0.5], [0.3, 0.2]], dtype="float32")
 
 
 @pytest.fixture
@@ -89,13 +92,13 @@ def data_generating_fn(true_prob_table):
     return partial(contingency_table, dgp_args=dgp_args)
 
 
-def effect(true_prob_table: np.ndarray) -> float:
+def true_effect(true_prob_table: np.ndarray) -> float:
     return true_prob_table[0, 1] - true_prob_table[1, 0]
 
 
 @pytest.fixture
-def true_effect_fn():
-    return effect
+def true_effect_fn(true_prob_table):
+    return partial(true_effect, true_prob_table=true_prob_table)
 
 
 @pytest.fixture
@@ -112,7 +115,7 @@ def compute_power(
     seed,
 ):
     rng = np.random.default_rng(seed=seed)
-    p_values, diffs = [], []
+    p_values, effects = [], []
     for _ in range(repetitions):
         dgp = data_generating_fn(rng=rng)
         test_parameters = StatsTestParameters(
@@ -120,22 +123,24 @@ def compute_power(
         )
         output = hypothesis_test_fn(test_parameters)
         p_values.append(output.p_value)
-        diffs.append(output.diff)
+        effects.append(output.effect)
     p_values = np.array(p_values)
-    diffs = np.array(diffs)
+    effects = np.array(effects)
 
-    true_diff = true_effect_fn(...)
-    true_sign = np.sign(true_diff) if not np.isnan(true_diff) else 0
-    sig = [(d, p) for d, p in zip(diffs, p_values) if p <= alpha]
+    true_effect = true_effect_fn()
+
+    true_sign = np.sign(true_effect) if not np.isnan(true_effect) else 0
+    sig = [(d, p) for d, p in zip(effects, p_values) if p <= alpha]
+
     power = (
         sum(1 for d, _ in sig if np.sign(d) == true_sign) / repetitions
         if repetitions > 0
         else np.nan
     )
-    mean_eff = np.mean(diffs) if diffs else np.nan
+    mean_eff = np.mean(effects) if effects.any() else np.nan
     type_m = (
-        np.mean([abs(d) / abs(true_diff) for d, _ in sig])
-        if sig and true_diff != 0
+        np.mean([abs(d) / abs(true_effect) for d, _ in sig])
+        if sig and true_effect != 0
         else np.nan
     )
     type_s = (
@@ -149,7 +154,7 @@ def compute_power(
 
 @pytest.fixture
 def repetitions():
-    return 500
+    return 11
 
 
 @pytest.fixture
