@@ -1,0 +1,73 @@
+[project]
+name = "power-analysis"
+version = "0.1.0"
+description = "A Python package for computing statistical power analysis."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache" }
+authors = [
+    { name = "Angelo Basile", email = "me@angelobasile.it" },
+    { name = "Desi R. Ivanova", email = "desi.r.ivanova@gmail.com" },
+    { name = "Areg Mikael Sarvazyan", email = "areg.sarvazyan@gmail.com" },
+    { name = "José Ángel González", email = "ja.gonzalez.barba@gmail.com" }
+]
+keywords = ["statistics", "power-analysis", "hypothesis-testing"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+
+dependencies = [
+    "numpy",
+    "scipy",
+    "statsmodels",
+    "datasets",
+    "plotnine",
+    "catalogue"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "flake8",
+    "black",
+    "mypy",
+    "isort",
+    "autoflake",
+    "types-requests"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/jogonba2/power-analysis"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["power"]
+
+[tool.setuptools.package-data]
+power_analysis = ["py.typed"]
+
+[tool.mypy]
+ignore_missing_imports = true
+no_site_packages = true
+
+[tool.black]
+line-length = 80
+target-version = ['py310']
+
+[tool.flake8]
+max-line-length = 80
+extend-ignore = ["E203", "W503"]
+remove-all-unused-imports = true
+recursive = true
+remove-unused-variables = true
+in-place = "power"
+exclude = "__init__.py"
