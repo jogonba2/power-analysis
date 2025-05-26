@@ -11,6 +11,8 @@ def contingency_table(
     dgp_args: DGPParameters, rng: Generator
 ) -> SimulatedSample:
     data = rng.multinomial(
-        dgp_args.dataset_size, dgp_args.true_prob_table.flatten()
+        n=dgp_args.dataset_size,
+        pvals=dgp_args.true_prob_table.flatten(),
+        size=1,
     ).reshape(2, 2)
     return SimulatedSample(data=data)
