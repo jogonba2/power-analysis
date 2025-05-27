@@ -53,7 +53,7 @@ def true_effect_fn(true_prob_table):
         effects.get("effect::cohens_g"),
         true_prob_table=true_prob_table,
         sample=None,
-        dataset_size=sum(true_prob_table),
+        dataset_size=true_prob_table.sum()
     )
 
 

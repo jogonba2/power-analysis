@@ -1,8 +1,7 @@
-import pandas as pd
 from functools import partial
 
-import jax.numpy as jnp
 import numpy as np
+import pandas as pd
 from joblib import Parallel, delayed
 from tqdm.auto import tqdm
 
@@ -33,14 +32,16 @@ def prob_table_with_agreement(baseline_acc, delta_acc, agreement_rate):
         p_only_2 = (disagreement_rate + delta_acc) / 2.0
     p_both_correct = acc1 - p_only_1
     p_both_incorrect = 1.0 - p_both_correct - p_only_1 - p_only_2
-    return jnp.array(
+    return np.array(
         [[p_both_incorrect, p_only_2], [p_only_1, p_both_correct]],
-        dtype=jnp.float32,
+        dtype=np.float32,
     )
 
 
 def compute_power_of_single_experiment(
     true_prob_table: np.ndarray,
+    test: str,
+    effect: str,
     dataset_size: int,
     iterations: int,
     alpha: float,
@@ -60,12 +61,10 @@ def compute_power_of_single_experiment(
         return PowerOutput(np.nan, np.nan, np.nan, np.nan)
 
     # Retrieve the function to compute Cohen's g as the effect size
-    effect_fn = effects.get("effect::cohens_g")
+    effect_fn = effects.get(effect)
 
     # Create a function for the McNemar test
-    statistical_test_fn = partial(
-        stats_tests.get("stats_test::mcnemar"), effect_fn=effect_fn
-    )
+    statistical_test_fn = partial(stats_tests.get(test), effect_fn=effect_fn)
 
     # Prepare the function to compute the *true* effect size for benchmarking
     true_effect_fn = partial(
@@ -119,28 +118,56 @@ def sample(
 
 if __name__ == "__main__":
     # parameters
-    num_points = 10_000
-    iterations = 5000
+    num_points = 10000
+    iterations = 50000
     alpha = 0.05
     seed = 123
 
     samples = sample(num_points, seed=seed)
 
-    tasks = (
-        delayed(compute_power_of_single_experiment)(
-            prob_table_with_agreement(b, d, a), s, iterations, alpha, seed
+    test_effects = [
+        ("stats_test::mcnemar", "effect::cohens_g"),
+        ("stats_test::unpaired_z", "effect::risk_difference"),
+    ]
+
+    dfs = []
+    for test, effect in test_effects:
+
+        tasks = (
+            delayed(compute_power_of_single_experiment)(
+                prob_table_with_agreement(baseline, delta, agreement),
+                test,
+                effect,
+                size,
+                iterations,
+                alpha,
+                seed,
+            )
+            for idx, (baseline, delta, size, agreement) in enumerate(samples)
         )
-        for idx, (b, d, s, a) in enumerate(samples)
+
+        powers = Parallel(n_jobs=-1, backend="multiprocessing")(
+            tqdm(tasks, total=num_points)
+        )
+
+        df = pd.DataFrame(powers)
+
+        df["test"] = test
+
+        dfs.append(df)
+
+    samples = pd.DataFrame(
+        samples, columns=["baseline", "delta", "size", "agreement"]
     )
 
-    powers = Parallel(n_jobs=-1, backend="multiprocessing")(
-        tqdm(tasks, total=num_points)
+    df = pd.concat(
+        [pd.concat([samples, samples], axis=0), pd.concat(dfs, axis=0)], axis=1
     )
 
-    df = pd.concat([
-        pd.DataFrame(powers),
-        pd.DataFrame(samples, columns=['baseline', 'delta', 'size', 'agreement'])
-    ], axis=1)
+    df = df.pivot(
+        index=["baseline", "delta", "size", "agreement"],
+        columns="test",
+        values=["power", "mean_eff", "type_m", "type_s"],
+    )
 
-    df.to_csv("examples/powers.csv.gz", index=False, compression='gzip')
-
+    df.to_csv("power-pivot.csv")
