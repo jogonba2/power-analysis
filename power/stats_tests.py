@@ -36,13 +36,14 @@ def unpaired_ztest(
     """
 
     count = [
-        args.simulated_sample.data[:, 1].sum(),
-        args.simulated_sample.data[1:, :].sum(),
+        args.simulated_sample[:, 1:].sum(),
+        args.simulated_sample[1:, :].sum(),
     ]
 
     nobs = [args.dataset_size, args.dataset_size]
 
-    p_value = proportions_ztest(count=count, nobs=nobs)
+    # zstat, pvalue
+    _, p_value = proportions_ztest(count=count, nobs=nobs)
 
     # TODO: Discuss with Desi what effects should be used (+ signature) for the unpaired ztest
     effect = effect_fn(
