@@ -62,19 +62,19 @@ So, let's compute these values and store them in the `true_prob_table` variable:
 dataset_size = len(references)
 
 prob_both_incorrect = (
-    (preds_A == preds_B) & (preds_A != references) & (preds_B != references)
+    (preds_A != references) & (preds_B != references)
 ).sum() / dataset_size
 
 prob_both_correct = (
-    (preds_A == preds_B) & (preds_A == references) & (preds_B == references)
+    (preds_A == references) & (preds_B == references)
 ).sum() / dataset_size
 
 prob_A_correct_B_incorrect = (
-    (preds_A != preds_B) & (preds_A == references) & (preds_B != references)
+    (preds_A == references) & (preds_B != references)
 ).sum() / dataset_size
 
 prob_A_incorrect_B_correct = (
-    (preds_A != preds_B) & (preds_A != references) & (preds_B == references)
+    (preds_A != references) & (preds_B == references)
 ).sum() / dataset_size
 
 true_prob_table = np.array(
@@ -108,6 +108,10 @@ data_generating_fn = partial(
 Perfect, we now have to instantiate the statistical test $\mathcal{T}$ we want to use and the estimated effect function $\mathcal{E}$. As statistical test, we will use McNemar's test, and the estimated effect will measure the difference between both models focusing on the difference of discordant pairs ($A$ correct & $B$ incorrect and $A$ incorrect & $B$ correct). Luckily, `power` already provides us implementations both for the statistical test and estimated effect: `mcnmear` and `cohens_g`. Let's instantiate them:
 
 ```python
+from power.effects import effects
+from power.stats_tests import stats_tests
+from functools import partial
+
 # Retrieve the function to compute Cohen's g as the effect size
 effect_fn = effects.get("effect::cohens_g")
 
@@ -132,13 +136,15 @@ true_effect_fn = partial(
 Now we have all the functions required to run the simulation to compute the statistical power! To run the simulation, `power` provides the function `compute_power` that receives as arguments the data generation process function $\mathcal{G}$, the statistical test $\mathcal{E}$, the true effect function that computes the true effect $\delta^*$, the number of iterations $S$, the significance level $\alpha\in(0,1)$, and a random seed to ensure reproducibility. `compute_power` returns the power of your experiment, so let's call it:
 
 ```python
+from power.compute_power import compute_power 
+
 power = compute_power(
     data_generating_fn,
     statistical_test_fn,
     true_effect_fn,
-    iterations,
-    alpha,
-    seed,
+    iterations=1000,
+    alpha=0.05,
+    seed=13,
 )
 ```
 
