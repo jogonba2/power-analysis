@@ -118,8 +118,8 @@ def sample(
 
 if __name__ == "__main__":
     # parameters
-    num_points = 10000
-    iterations = 50000
+    num_points = 10_000
+    iterations = 500
     alpha = 0.05
     seed = 123
 
@@ -164,10 +164,4 @@ if __name__ == "__main__":
         [pd.concat([samples, samples], axis=0), pd.concat(dfs, axis=0)], axis=1
     )
 
-    df = df.pivot(
-        index=["baseline", "delta", "size", "agreement"],
-        columns="test",
-        values=["power", "mean_eff", "type_m", "type_s"],
-    )
-
-    df.to_csv("power-pivot.csv")
+    df.to_csv("examples/power.csv.gz", compression='gzip')

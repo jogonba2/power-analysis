@@ -16,8 +16,9 @@ def compute_power(
 ):
     true_effect = true_effect_fn()
 
+
     # If the true effect is 0, Null is true, so return NaNs
-    if true_effect == 0.0:
+    if not true_effect.all():
         return PowerOutput(
             power=np.nan, mean_eff=np.nan, type_m=np.nan, type_s=np.nan
         )
@@ -25,7 +26,6 @@ def compute_power(
     rng = np.random.default_rng(seed=seed)
     p_values, effects = [], []
 
-    # TODO: Multiprocessing in the for loop
     for _ in range(iterations):
         dgp = data_generating_fn(rng=rng)
         test_parameters = StatsTestParameters(
