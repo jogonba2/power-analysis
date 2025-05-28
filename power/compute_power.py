@@ -43,8 +43,6 @@ def compute_power(
 
     true_sign = np.sign(true_effect) if not np.isnan(true_effect) else 0
     # filter the significant effects
-    # TODO: why store the pvals as well? Don't think they are used anywhere
-    # FIXED: dont store the pvals
     significant_effects = [
         effect for effect, pval in zip(effects, p_values) if pval <= alpha
     ]

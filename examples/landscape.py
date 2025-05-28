@@ -13,34 +13,6 @@ from power.stats_tests import stats_tests
 from power.types import DGPParameters, PowerOutput
 
 
-def prob_table_with_agreement(
-    baseline_acc: float, delta_acc: float, agreement_rate: float
-) -> np.ndarray:
-    """
-    Given a baseline accuracy, delta accuracy, and agreement_rate,
-    returns the 2x2 probability table as:
-         [[p_both_incorrect, p_only_2_correct],
-          [p_only_1_correct, p_both_correct]]
-    This follows the formulas from your original implementation.
-    """
-    acc1 = baseline_acc
-    # this should be acc2??
-    acc2 = acc1 + delta_acc
-    disagreement_rate = 1.0 - agreement_rate
-    if delta_acc > 0:
-        p_only_1 = (disagreement_rate - delta_acc) / 2.0
-        p_only_2 = (disagreement_rate - delta_acc) / 2.0 + delta_acc
-    else:
-        p_only_1 = (disagreement_rate + delta_acc) / 2.0 - delta_acc
-        p_only_2 = (disagreement_rate + delta_acc) / 2.0
-    p_both_correct = acc1 - p_only_1
-    p_both_incorrect = 1.0 - p_both_correct - p_only_1 - p_only_2
-    return np.array(
-        [[p_both_incorrect, p_only_2], [p_only_1, p_both_correct]],
-        dtype=np.float32,
-    )
-
-
 def compute_power_of_single_experiment(
     true_prob_table: np.ndarray,
     test: str,
@@ -90,42 +62,11 @@ def compute_power_of_single_experiment(
     return power
 
 
-def sample(
-    n: int,
-    # what are these??
-    baseline_range=(0.5, 0.9),
-    delta_range=(0.01, 0.5),
-    agreement_range=(0.5, 0.99),
-    ds_sizes=(500, 1000, 2000),
-    seed=123,
-):
-    # Why the brute force?
-    rng = np.random.default_rng(seed)
-    samples = []
-    while len(samples) < n:
-        p00, p01, p10, p11 = rng.dirichlet([1, 1, 1, 1])
-        b = p11 + p10
-        d = (p11 + p01) - b
-        agr = p11 + p00
-
-        # enforce your desired marginal ranges
-        if not (baseline_range[0] <= b <= baseline_range[1]):
-            continue
-        if not (delta_range[0] <= d <= delta_range[1]):
-            continue
-        if not (agreement_range[0] <= agr <= agreement_range[1]):
-            continue
-
-        s = int(rng.choice(ds_sizes))
-        samples.append((b, d, s, agr))
-    return samples
-
-
 def make_probability_table(
     baseline_acc: float = 0.5,  # accuracy of the baseline model (Model 1/A)
     delta_acc: float = 0.1,  # accuracy difference between Model 1 and Model 2, \theta_B - baseline_acc
     agreement_rate: float = 0.8,  # agreement rate between the two models (Model 1 and Model 2)
-):
+) -> np.ndarray:
     """
     Returns a 2x2 probability table representing the joint distribution of two models predictions.
     The table is structured as follows:
@@ -147,25 +88,50 @@ def make_probability_table(
     p00 = agreement_rate - p11
     probs = np.array([p00, p01, p10, p11])
     if np.any(probs < 0) or not np.isclose(probs.sum(), 1.0):
-        raise ValueError("Infeasible combination.")
-    probs_table = probs.reshape(2, 2)
-    assert (
-        probs_table[1, :].sum() == baseline_acc
-        and probs_table[:, 1].sum() == baseline_acc + delta_acc
-        and probs_table.diagonal().sum() == agreement_rate
-    ), "Something went wrong with the probabilities...."
-    return probs_table
+        raise ValueError(
+            "The provided parameters do not yield a valid probability table."
+        )
+
+    table = probs.reshape(2, 2)
+    # some more sanity checks
+    assert np.isclose(table[1, :].sum(), baseline_acc), "Error!"
+    assert np.isclose(table[:, 1].sum(), baseline_acc + delta_acc), "Error!"
+    assert np.isclose(table.diagonal().sum(), agreement_rate), "Error!"
+
+    return table
 
 
 if __name__ == "__main__":
+    from itertools import product
+
     # parameters
-    num_points = 10000
-    iterations = 50000
+    num_simulations_per_sample = 1000
     alpha = 0.05
     seed = 123
 
-    samples = sample(num_points, seed=seed)
-
+    baseline_values = np.linspace(0.5, 0.9, 10)
+    delta_values = np.linspace(0.01, 0.5, 50)
+    agreement_values = np.linspace(0.0, 0.99, 50)
+    dataset_sizes = [500, 1000, 2000]
+    grid_for_samples = product(
+        baseline_values, delta_values, agreement_values, dataset_sizes
+    )
+    probability_tables = []
+    for baseline, delta, agreement, size in grid_for_samples:
+        try:  # skip infeasible combinations
+            table = make_probability_table(baseline, delta, agreement)
+        except ValueError:
+            continue
+        probability_tables.append(
+            {
+                "size": size,
+                "baseline": baseline,
+                "delta": delta,
+                "agreement": agreement,
+                "prob_table": table,
+            }
+        )
+    print(f"{len(probability_tables)} valid probability tables generated.")
     test_effects = [
         ("stats_test::mcnemar", "effect::cohens_g"),
         ("stats_test::unpaired_z", "effect::risk_difference"),
@@ -173,22 +139,25 @@ if __name__ == "__main__":
 
     dfs = []
     for test, effect in test_effects:
-
         tasks = (
             delayed(compute_power_of_single_experiment)(
-                prob_table_with_agreement(baseline, delta, agreement),
+                sample["prob_table"],
                 test,
                 effect,
-                size,
-                iterations,
+                sample["size"],
+                num_simulations_per_sample,
                 alpha,
                 seed,
             )
-            for idx, (baseline, delta, size, agreement) in enumerate(samples)
+            for sample in probability_tables
         )
 
         powers = Parallel(n_jobs=-1, backend="multiprocessing")(
-            tqdm(tasks, total=num_points)
+            tqdm(
+                tasks,
+                total=len(probability_tables),
+                desc=f"Running {test} with {effect}",
+            )
         )
 
         df = pd.DataFrame(powers)
@@ -197,18 +166,35 @@ if __name__ == "__main__":
 
         dfs.append(df)
 
-    samples = pd.DataFrame(
-        samples, columns=["baseline", "delta", "size", "agreement"]
+    results = pd.concat(
+        [
+            pd.concat(
+                [
+                    pd.DataFrame(probability_tables),
+                    pd.DataFrame(probability_tables),
+                ],
+                axis=0,
+            ),
+            pd.concat(dfs, axis=0),
+        ],
+        axis=1,
     )
 
-    df = pd.concat(
-        [pd.concat([samples, samples], axis=0), pd.concat(dfs, axis=0)], axis=1
-    )
+    #
+    averaged = results.groupby(["delta", "test"], as_index=False)[
+        "power"
+    ].mean()
 
-    df = df.pivot(
-        index=["baseline", "delta", "size", "agreement"],
-        columns="test",
-        values=["power", "mean_eff", "type_m", "type_s"],
-    )
+    # Plotting the results
+    import matplotlib.pyplot as plt
 
-    df.to_csv("power-pivot.csv")
+    plt.figure(figsize=(6, 4))
+    for test_name, g in averaged.groupby("test"):
+        plt.plot(g["delta"], g["power"], marker="o", label=test_name)
+
+    plt.xlabel("Delta (accuracy difference)")
+    plt.ylabel("Statistical power")
+    plt.title("Power vs Δ (averaged over baseline, agreement, size)")
+    plt.legend(title="Test")
+    plt.grid(True)
+    plt.tight_layout()
