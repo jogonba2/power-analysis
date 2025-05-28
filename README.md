@@ -20,12 +20,22 @@ In pre-hoc analyses, researchers would like to know how many samples are require
 
 This example will guide you to understand how to compute the statistical power of your experiment to compare two sentiment analysis models, $A$ and $B$, trained with the IMDB dataset.
 
-Let's load the trained models, the dataset, and perform inference:
+We provide a tour for practitioners, showing how the statistical power can be computed with a single line, and a guide for researchers to understand the internals.
+
+## 👨‍🏭 Practitioner tour 
+
+The statistical power can be computed just calling `classification_report` by providing the predictions of your models and the reference labels.
+
+Let's first load the dataset, the trained models, and predict the test set:
 
 ```python
 from transformers import pipeline
 from datasets import load_dataset
 import numpy as np
+
+# Load the test set and keep it small for the example
+test_set = load_dataset("stanfordnlp/imdb", split="test")
+test_set = test_set.select(range(100))
 
 # Create the pipelines for inference
 model_A = pipeline(model="lvwerra/distilbert-imdb", batch_size=32, device=0)
@@ -35,9 +45,53 @@ model_B = pipeline(model="jialicheng/deberta-base-imdb", batch_size=32, device=0
 model_A.model.config.id2label={0: "neg", 1: "pos"}
 model_B.model.config.id2label=model_A.model.config.id2label
 
+# Predict with the pipelines
+preds_A = model_A(test_set["text"], truncation=True)
+preds_B = model_B(test_set["text"], truncation=True)
+
+# Gather predictions as numpy arrays
+preds_A = [pred["label"] for pred in preds_A]
+preds_B = [pred["label"] for pred in preds_B]
+references = test_set.features["label"].int2str(test_set["label"])
+```
+
+Then, we only have to call `classification_report` by passing the model predictions and references, the number of iterations for the simulation, the significance level, and a random seed for reproducibility. Users can also specify the data generation process, the statistical test, and the effect size function, as long as these are provided by `power`. By default, these are configured to the most suited ones for classification tasks. If you want to go deeper into these topics, please, read the tour for researchers.
+
+```python
+from power.metrics import classification_report
+
+power = classification_report(
+    preds_A, preds_B, references, iterations=1000, alpha=0.05, seed=13
+)
+```
+
+Nice! You have computed the power of your experiment, together with other useful metrics like [Type S and M errors](https://statmodeling.stat.columbia.edu/2004/12/29/type_1_type_2_t/) and mean effect.
+
+> [!TIP]
+> After running the code above, the power should be around 17.8%. As convention, ≥ 80% power can be considered enough to ensure that, in your experiment, you rejected the null hypothesis correctly. Otherwise, your experiment can be considered underpowered, i.e., it cannot provide useful evidence that one model achieves slightly better performance than another for the underlying data distribution.
+
+## 👩‍🔬 Researcher tour 
+
+Here, we show the whole flow a researcher can follow to compute the statistical power, by replicating the example in the practitioner tour but with access to the internals. This allows you to change any component of the simulation, including: data generation process (DGP), statistical test, and effect functions.
+
+As in the tour for practitioners, the first step is to load the dataset, the trained models, and predict the test set:
+
+```python
+from transformers import pipeline
+from datasets import load_dataset
+import numpy as np
+
 # Load the test set and keep it smaller for the example
 test_set = load_dataset("stanfordnlp/imdb", split="test")
 test_set = test_set.select(range(100))
+
+# Create the pipelines for inference
+model_A = pipeline(model="lvwerra/distilbert-imdb", batch_size=32, device=0)
+model_B = pipeline(model="jialicheng/deberta-base-imdb", batch_size=32, device=0)
+
+# Unify the label dicts for the example
+model_A.model.config.id2label={0: "neg", 1: "pos"}
+model_B.model.config.id2label=model_A.model.config.id2label
 
 # Predict with the pipelines
 preds_A = model_A(test_set["text"], truncation=True)
@@ -62,31 +116,19 @@ So, let's compute these values and store them in the `true_prob_table` variable:
 # Prepare the true probability table
 dataset_size = len(references)
 
-prob_both_incorrect = (
-    (preds_A != references) & (preds_B != references)
-).sum() / dataset_size
-
-prob_both_correct = (
-    (preds_A == references) & (preds_B == references)
-).sum() / dataset_size
-
-prob_A_correct_B_incorrect = (
-    (preds_A == references) & (preds_B != references)
-).sum() / dataset_size
-
-prob_A_incorrect_B_correct = (
-    (preds_A != references) & (preds_B == references)
-).sum() / dataset_size
-
-true_prob_table = np.array(
+true_prob_table = np.array([
     [
-        [prob_both_incorrect, prob_A_correct_B_incorrect],
-        [prob_A_incorrect_B_correct, prob_both_correct],
+        ((preds_a != references) & (preds_b != references)).mean(),
+        ((preds_a == references) & (preds_b != references)).mean()
+    ],
+    [
+        ((preds_a != references) & (preds_b == references)).mean(),
+        ((preds_a == references) & (preds_b == references)).mean()
     ]
-)
+])
 ```
 
-Now, we have all the information required to instantiate the generation process (DGP) $\mathcal{G}$ that will be used to sample synthetic data from `true_prob_table`. Since we will use the [McNemar test](https://en.wikipedia.org/wiki/McNemar%27s_test) in this experiment as statistical test to compute a p-value and reject/accept the null hypothesis ($H_0: A=B$), here we will use `contingency_table` as DGP. This DGP is already provided by the `power` package and it will sample contingency tables from the true probability table we have computed, to be used later as inputs to the statistical test.
+Now, we have all the information required to instantiate the generation process $\mathcal{G}$ that will be used to sample synthetic data from `true_prob_table`. Since we will use the [McNemar test](https://en.wikipedia.org/wiki/McNemar%27s_test) in this experiment as statistical test to compute a p-value and reject/accept the null hypothesis ($H_0: A=B$), here we will use `contingency_table` as DGP. This DGP is already provided by the `power` package and it will sample contingency tables from the true probability table we have computed, to be used later as inputs to the statistical test. Nothing prevents you to create other DGP functions!
 
 > [!NOTE]  
 > In this context, synthetic data refers to data sampled from the `true_prob_table`. This is purely statistical based data generation, not related in any case with synthetic data as commonly understood in NLP with techniques like backtranslation, or LLM generation.
@@ -106,7 +148,7 @@ data_generating_fn = partial(
 )
 ```
 
-Perfect, we now have to instantiate the statistical test $\mathcal{T}$ we want to use and the estimated effect function $\mathcal{E}$. As statistical test, we will use McNemar's test, and the estimated effect will measure the difference between both models focusing on the difference of discordant pairs ($A$ correct & $B$ incorrect and $A$ incorrect & $B$ correct). Luckily, `power` already provides us implementations both for the statistical test and estimated effect: `mcnmear` and `cohens_g`. Let's instantiate them:
+Perfect, we now have to instantiate the statistical test $\mathcal{T}$ we want to use and the estimated effect function $\mathcal{E}$. As statistical test, we will use McNemar's test, and the estimated effect will measure the difference between both models focusing on the difference of discordant pairs ($A$ correct & $B$ incorrect and $A$ incorrect & $B$ correct). Luckily, `power` already provides us implementations both for the statistical test and estimated effect: `mcnemar` and `cohens_g`. Again, nothing prevents you for implementing your own statistical tests and functions to estimate the effect size. Let's instantiate `mcnemar` and `cohens_g` for this example:
 
 ```python
 from power.effects import effects
@@ -149,85 +191,7 @@ power = compute_power(
 )
 ```
 
-Congrats! You have already computed the power of your experiment. But it is very low: 17.8%. As convention, ≥ 80% power can be considered enough to ensure that, in your experiment, you rejected the null hypothesis correctly. Otherwise, your experiment can be considered underpowered, i.e., it cannot provide useful evidence that one model achieves slightly better performance than another for the underlying data distribution.
-
+Congrats! You have already computed the power of your experiment by using the internals of `power`.
 
 > [!NOTE]  
-> Through this example, we shown how to use existing functionality in the `power` package to compute statistical power in a specific scenario: text classification task, using the McNemar test as statistical test, and measuring the effect size focusing on discordant pairs. If this does not fit your scenario, you can use the registers provided by `power` to include any additional logic you need.
-
-# General usage example
-
-```python
-from functools import partial
-import numpy as np
-
-# Import the power analysis utility functions from the package
-from power.compute_power import compute_power 
-from power.dgps import dgps
-from power.effects import effects
-from power.stats_tests import stats_tests
-from power.types import DGPParameters
-
-
-if __name__ == "__main__":
-    # Define a 2x2 contingency table representing true conditional probabilities
-    true_prob_table = np.array([[0.0, 0.5], [0.3, 0.2]], dtype="float32")
-    
-    # Set the size of each synthetic dataset
-    dataset_size = 1000
-
-    # Package the true probability table and dataset size into DGPParameters
-    dgp_args = DGPParameters(
-        true_prob_table=true_prob_table, dataset_size=dataset_size
-    )
-
-    # Selects a specific DGP variant: a contingency table generator
-    data_generating_fn = partial(
-        dgps.get("dgp::contingency_table"), dgp_args=dgp_args
-    )
-
-    # Retrieve the function to compute Cohen's g as the effect size
-    effect_fn = effects.get("effect::cohens_g")
-
-    # Create a function for the McNemar test
-    statistical_test_fn = partial(
-        stats_tests.get("stats_test::mcnemar"), effect_fn=effect_fn
-    )
-
-    # Prepare the function to compute the *true* effect size for benchmarking
-    true_effect_fn = partial(
-        effect_fn,
-        true_prob_table=true_prob_table,
-        sample=None,
-        dataset_size=dataset_size,
-    )
-
-    # Define experiment parameters
-    # Number of simulation iterations
-    iterations = 11
-    # Significance level
-    alpha = 0.05
-    seed = 13
-
-    # Compute statistical power and related metrics using simulation
-    power = compute_power(
-        data_generating_fn,
-        statistical_test_fn,
-        true_effect_fn,
-        iterations,
-        alpha,
-        seed,
-    )
-
-    # Verify that the statistical power is 100%
-    assert power.power == 1.0
-
-    # Validate the computed mean effect size is as expected (Cohen's g ≈ 0.193)
-    np.testing.assert_almost_equal(power.mean_eff, 0.193363, decimal=4)
-
-    # Validate the computed Type M error (magnitude exaggeration)
-    np.testing.assert_almost_equal(power.type_m, 0.966818, decimal=4)
-
-    # Validate the computed Type S error (sign errors, here expected to be zero)
-    np.testing.assert_almost_equal(power.type_s, 0.0, decimal=0)
-```
+> Through this example, we shown how to use existing functionality in the `power` package to compute statistical power in a specific scenario: text classification task, using the McNemar test as statistical test, and measuring the effect size focusing on discordant pairs. If this does not fit your scenario, you can use the registers provided by `power` to register any additional function you need.
