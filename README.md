@@ -1,3 +1,4 @@
+# ⚡ Power
 <p align="center">
     <a href="LICENSE">
         <img alt="license" src="https://img.shields.io/badge/license-Apache_2.0-green">
@@ -15,7 +16,7 @@ In post-hoc analyses, researchers have evaluated two models, $A$ and $B$, on a t
 
 In pre-hoc analyses, researchers would like to know how many samples are required to have enough statistical power in model comparisons, before building a dataset. This way, we can collect enough test samples to determine later that two models are statistically different with enough power.
 
-# 🎭 Post-hoc analysis for a text classification task
+# 🎭 Post-hoc analysis in a text classification task
 
 This example will guide you to understand how to compute the statistical power of your experiment to compare two sentiment analysis models, $A$ and $B$, trained with the IMDB dataset.
 
