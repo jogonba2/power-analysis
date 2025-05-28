@@ -110,9 +110,9 @@ if __name__ == "__main__":
     seed = 123
 
     baseline_values = np.linspace(0.5, 0.9, 10)
-    delta_values = np.linspace(0.01, 0.5, 50)
+    delta_values = np.linspace(0.01, 0.3, 50)
     agreement_values = np.linspace(0.0, 0.99, 50)
-    dataset_sizes = [500, 1000, 2000]
+    dataset_sizes = [50, 100, 500, 1000]
     grid_for_samples = product(
         baseline_values, delta_values, agreement_values, dataset_sizes
     )
@@ -161,11 +161,10 @@ if __name__ == "__main__":
         )
 
         df = pd.DataFrame(powers)
-
         df["test"] = test
-
         dfs.append(df)
 
+    ### tidy up and plot ###
     results = pd.concat(
         [
             pd.concat(
@@ -198,3 +197,46 @@ if __name__ == "__main__":
     plt.legend(title="Test")
     plt.grid(True)
     plt.tight_layout()
+
+    # plot the different dataset sizes using subplots and shared axes
+    fig, axes = plt.subplots(
+        nrows=1, ncols=4, figsize=(12, 3), sharex=True, sharey=True
+    )
+    for ax, size in zip(axes, results["size"].unique()):
+        subset = results[results["size"] == size]
+        # average across the baseline and agreement parameters
+        subset = subset.groupby(["delta", "test"], as_index=False).mean()
+        for test_name, g in subset.groupby("test"):
+            ax.plot(
+                g["delta"],
+                g["power"],
+                # marker="o",
+                label=test_name,
+                # alpha=0.7,
+            )
+        ax.set_title(f"Dataset size: {size}")
+        ax.grid(True)
+    # axes[0].set_ylabel("Estimated power")
+    # x axis title for the entire figure
+
+    # ax.legend(title="Test")
+    # global labels
+    fig.text(0.5, -0.03, "Δ (accuracy difference)", ha="center")  # x-axis
+    fig.text(
+        -0.01, 0.5, "Estimated power", va="center", rotation="vertical"
+    )  # y-axis
+
+    # one legend (take handles/labels from the last axis that was plotted)
+    handles, labels = axes[-1].get_legend_handles_labels()
+    fig.legend(
+        handles,
+        labels,
+        title="Test",
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.25),
+        ncol=len(labels),
+    )
+
+    plt.suptitle("Power vs Δ (by dataset size)")
+    plt.tight_layout(rect=[0, 0, 1, 1])  # adjust to fit title
+    plt.show()
