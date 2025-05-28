@@ -149,7 +149,7 @@ power = compute_power(
 )
 ```
 
-Congrats! You already have the power of your experiment. As convention, ≥ 80% power can be considered enough to ensure that, in your experiment, you rejected the null hypothesis correctly. Otherwise, your experiment can be considered underpowered, i.e., it cannot provide useful evidence that one model achieves slightly better performance than another for the underlying data distribution.
+Congrats! You have already computed the power of your experiment. But it is very low: 17.8%. As convention, ≥ 80% power can be considered enough to ensure that, in your experiment, you rejected the null hypothesis correctly. Otherwise, your experiment can be considered underpowered, i.e., it cannot provide useful evidence that one model achieves slightly better performance than another for the underlying data distribution.
 
 
 > [!NOTE]  
