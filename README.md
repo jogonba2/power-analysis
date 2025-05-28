@@ -55,7 +55,7 @@ preds_B = [pred["label"] for pred in preds_B]
 references = test_set.features["label"].int2str(test_set["label"])
 ```
 
-Then, we only have to call `classification_report` by passing the model predictions and references, the number of iterations for the simulation, the significance level, and a random seed for reproducibility. Users can also specify the data generation process, the statistical test, and the effect size function, as long as these are provided by `power`. By default, these are configured to the most suited ones for classification tasks. If you want to go deeper into these topics, please, read the tour for researchers.
+Then, we only have to call `classification_report` by passing the model predictions and references, the number of iterations for the simulation, the significance level, and a random seed for reproducibility. Users can also specify the data generation process, the statistical test, and the effect size function, as long as these are provided by `power`. By default, these are configured to the best suited ones for classification tasks. If you want to go deeper into these topics, please, read the tour for researchers.
 
 ```python
 from power.metrics import classification_report
