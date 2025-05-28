@@ -60,9 +60,11 @@ Then, we only have to call `classification_report` by passing the model predicti
 ```python
 from power.metrics import classification_report
 
-power = classification_report(
+power_report = classification_report(
     preds_A, preds_B, references, iterations=1000, alpha=0.05, seed=13
 )
+
+assert power_report.power == 0.178
 ```
 
 Nice! You have computed the power of your experiment, together with other useful metrics like [Type S and M errors](https://statmodeling.stat.columbia.edu/2004/12/29/type_1_type_2_t/) and mean effect.
@@ -181,7 +183,7 @@ Now we have all the functions required to run the simulation to compute the stat
 ```python
 from power.compute_power import compute_power 
 
-power = compute_power(
+power_report = compute_power(
     data_generating_fn,
     statistical_test_fn,
     true_effect_fn,
