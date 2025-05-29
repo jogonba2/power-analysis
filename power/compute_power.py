@@ -17,7 +17,6 @@ def compute_power(
     assert iterations > 0, "Number of iterations must be greater than 0"
     true_effect = true_effect_fn()
 
-
     # If the true effect is 0, Null is true, so return NaNs
     if not true_effect.all():
         return PowerOutput(

@@ -1,11 +1,10 @@
-import pytest
 from functools import partial
 from itertools import product
 
 import numpy as np
 import pandas as pd
-from joblib import Parallel, delayed
-from tqdm.auto import tqdm
+from statsmodels.stats.power import NormalIndPower
+from statsmodels.stats.proportion import proportion_effectsize
 
 # Import the power analysis utility functions from the package
 from power.compute_power import compute_power
@@ -13,9 +12,6 @@ from power.dgps import dgps
 from power.effects import effects
 from power.stats_tests import stats_tests
 from power.types import DGPParameters, PowerOutput
-
-from statsmodels.stats.proportion import proportion_effectsize
-from statsmodels.stats.power import NormalIndPower
 
 
 def compute_power_of_single_experiment(
@@ -108,9 +104,7 @@ def make_probability_table(
 
 def test_landscape_function():
     # parameters
-    num_simulations_per_sample = 1000
     alpha = 0.05
-    seed = 123
 
     baseline_values = np.linspace(0.5, 0.9, 10)
     delta_values = np.linspace(0.01, 0.3, 50)
@@ -143,14 +137,19 @@ def test_landscape_function():
     for test, effect in test_effects:
         powers = [
             NormalIndPower(ddof=1).power(
-                effect_size=proportion_effectsize(prop1=sample['prob_table'][0,1], prop2=[sample['prob_table'][1,0]]),
-                nobs1=sample['size'],
+                effect_size=proportion_effectsize(
+                    prop1=sample["prob_table"][0, 1],
+                    prop2=[sample["prob_table"][1, 0]],
+                ),
+                nobs1=sample["size"],
                 alpha=alpha,
                 ratio=1,
-                alternative='two-sided'
-                ) for sample in probability_tables] 
+                alternative="two-sided",
+            )
+            for sample in probability_tables
+        ]
 
-        df = pd.DataFrame({'power': powers})
+        df = pd.DataFrame({"power": powers})
         df["test"] = test
         dfs.append(df)
 
@@ -229,4 +228,4 @@ def test_landscape_function():
 
     plt.suptitle("Power vs Δ (by dataset size)")
     plt.tight_layout(rect=[0, 0, 1, 1])  # adjust to fit title
-    plt.savefig('debug-ztest-closed-form.png')
+    plt.savefig("debug-ztest-closed-form.png")
