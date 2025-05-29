@@ -14,7 +14,7 @@ This repository contains the source code of a simulator to compute **statistical
 
 In post-hoc analyses, researchers have evaluated two models, $A$ and $B$, on a test set and compared their performances, ideally considering a statistical test to reject the null hypothesis defined as $H_0: A=B$. Let's suppose that the null hypothesis has been rejected in that experiment. Then, the following question arises: what is the probability of **correctly** rejecting that false null hypothesis with your experiment? This is the statistical power of your experiment, and it is crucial to ensure your experiments have enough power: underpowered studies not only fail to detect real effects but actively distort the results that achieve statistical significance. This repo will help you in determining it such post-hoc analysis.
 
-In pre-hoc analyses, researchers would like to know how many samples are required to have enough statistical power in model comparisons, before building a dataset. This way, we can collect enough test samples to determine later that two models are statistically different with enough power.
+In pre-hoc analyses, researchers would like to know (i) how many test samples are required to have enough statistical power in model comparisons before building a final dataset or (ii) what is the minimum detectable effect, e.g., difference in accuracy for two models, that can be explained with a given dataset. This way, `power` helps you decide whether you need more test samples to confidently determine if two models are statistically different—before even creating a dataset!
 
 # 🎭 Post-hoc analysis in a text classification task
 
@@ -197,3 +197,145 @@ Congrats! You have already computed the power of your experiment by using the in
 
 > [!NOTE]  
 > Through this example, we shown how to use existing functionality in the `power` package to compute statistical power in a specific scenario: text classification task, using the McNemar test as statistical test, and measuring the effect size focusing on discordant pairs. If this does not fit your scenario, you can use the registers provided by `power` to register any additional function you need.
+
+# ➡️ Pre-hoc analysis
+
+There are two situations in which we would like to run pre-hoc analyses, which involve a dataset size (N) and the minimum detectable effect (MDE):
+
+1. **Estimate N for a fixed MDE**: you want to create an evaluation dataset with enough samples to confidently detect an absolute difference among models.
+2. **Estimate MDE for a fixed N**: you want to know what is the minimum difference among models that you can confidently detect with a dataset of size N.
+
+## 📚 Estimate N for a fixed MDE
+
+Here, you would like to know how many samples you need to build an evaluation dataset in a way that allows you to confidently detect a minimum detectable effect.
+
+To do this, you can use the `find_dataset_size` function from the power package. To use it, you need to specify the MDE, the Type I error rate ($\alpha$), the Type II error rate ($\beta$), and either provide historical evaluation data to estimate the variances **or** input the variances directly fixed at some sensible level. Here we describe the concrete parameters of `find_dataset_size`, but it is very recommended to take a look to [Section 5 of this paper](https://arxiv.org/pdf/2411.00640) for a better understanding:
+
+| Group                   | Symbol       | Description                                                                 |
+|-------------------------|--------------|-----------------------------------------------------------------------------|
+| **Mandatory**           | `mde`        | Minimum detectable effect you want to detect.                               |
+| **Mandatory**           | $\alpha$     | Type I error rate.                                                          |
+| **Mandatory**           | $\beta$      | Type II error rate. This is 1-power.                                                        |
+| **Mandatory**           | $k_A$        | Number of answers from model A that will be sampled in a paired analysis.   |
+| **Mandatory**           | $k_B$        | Number of answers from model B that will be sampled in a paired analysis.   |
+| **From historical data**     | $x_A$        | Array of shape (N,) containing previous evaluation data of model A.         |
+| **From historical data**     | $x_B$        | Array of shape (N,) containing previous evaluation data of model B.         |
+| **From sensible level** | $\sigma^2_A$ | Variance of model A scores.                                                 |
+| **From sensible level** | $\sigma^2_B$ | Variance of model B scores.                                                 |
+| **From sensible level** | $\omega$     | Defined as $\sigma^2_A + \sigma^2_B - 2\text{Cov}(x_A, x_B)$.               |
+
+To illustrate the use of `find_dataset_size`, let's follow the example of [(Evan Miller, 2024)](https://arxiv.org/pdf/2411.00640) by fixing variances at some sensible level:
+
+```python
+from power.metrics import find_dataset_size
+
+# Mandatory arguments
+mde = 0.03
+alpha = 0.05
+beta = 0.2
+k_a = 1
+k_b = 1
+
+# Variances at some sensible level
+var_a = var_b = 0
+omega = 1 / 9
+
+dataset_size = find_dataset_size(
+    mde,
+    alpha=alpha,
+    beta=beta,
+    var_a=var_a,
+    var_b=var_b,
+    omega=omega,
+    k_a=k_a,
+    k_b=k_b,
+)
+assert dataset_size == 968
+```
+Nice! The output matches with the example of [(Eval Miller, 2024)](https://arxiv.org/pdf/2411.00640). Basically, that tell us that we need 968 evaluation samples to confidently detect an absolute difference of 3% (MDE) at least 80% of the time ($\beta=0.2$) with a false-positive rate of 5% ($\alpha=0.05$).
+
+Instead of providing variances, you can also estimate the dataset size for a fixed MDE by providing historical evaluation data:
+
+```python
+from power.metrics import find_dataset_size
+
+# Mandatory arguments
+mde = 0.03
+alpha = 0.05
+beta = 0.2
+k_a = 1
+k_b = 1
+
+# Historical evaluation scores
+x_a = [0.1, 0.2, 0.3]
+x_b = [0.2, 0.4, 0.7]
+
+dataset_size = find_dataset_size(
+    mde, alpha=alpha, beta=beta, x_a=x_a, x_b=x_b, k_a=k_a, k_b=k_b
+)
+assert dataset_size == 416
+```
+
+## 🔍 Estimate MDE for a fixed N
+
+Here, you already have an evaluation dataset of size N and you want to determine what is the minimum detectable effect with such dataset.
+
+To do this, `power` provides the `find_minimum_detectable_effect` function. To use it, you must provide the same arguments than for `find_dataset_size`, but replacing the `mde` argument by the `dataset_size` argument. Let's do it using fixed values for variances:
+
+```python
+from power.metrics import find_minimum_detectable_effect
+
+# Mandatory arguments
+dataset_size = 968
+alpha = 0.05
+beta = 0.2
+k_a = 1
+k_b = 1
+
+# Variances at some sensible level
+var_a = var_b = 0
+omega = 1 / 9
+
+mde = find_minimum_detectable_effect(
+    dataset_size=dataset_size,
+    alpha=alpha,
+    beta=beta,
+    var_a=var_a,
+    var_b=var_b,
+    omega=omega,
+    k_a=k_a,
+    k_b=k_b,
+)
+np.testing.assert_almost_equal(mde, 0.03, decimal=3)
+```
+
+Since we used the same variances as in the "Estimate N for a fixed MDE" example, where the variances are fixed, the minimum detectable effect is the same as the one we specified there: 3%. This tell us that, with 968 evaluation samples, we can confidently detect an absolute difference of 3% at least 80% of the time ($\beta=0.2$) with a false-positive rate of 5% ($\alpha=0.05$).
+
+
+Instead of providing variances, you can also estimate the MDE for a fixed dataset size by providing historical evaluation data:
+
+```python
+from power.metrics import find_minimum_detectable_effect
+
+# Mandatory arguments
+dataset_size = 416
+alpha = 0.05
+beta = 0.2
+k_a = 1
+k_b = 1
+
+# Historical evaluation scores
+x_a = [0.1, 0.2, 0.3]
+x_b = [0.2, 0.4, 0.7]
+
+mde = find_minimum_detectable_effect(
+    dataset_size_from_data,
+    alpha=alpha,
+    beta=beta,
+    x_a=x_a,
+    x_b=x_b,
+    k_a=k_a,
+    k_b=k_b,
+)
+np.testing.assert_almost_equal(mde_from_data, mde, decimal=3)
+```

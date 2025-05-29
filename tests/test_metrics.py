@@ -52,7 +52,7 @@ def test_find_dataset_size_from_data(
     dataset_size = find_dataset_size(
         mde, alpha=alpha, beta=beta, x_a=x_a, x_b=x_b
     )
-    assert dataset_size == 132
+    assert dataset_size == 416
 
 
 @pytest.mark.parametrize(
@@ -85,7 +85,7 @@ def test_find_minimum_detectable_effect_from_params(
 
 @pytest.mark.parametrize(
     ["dataset_size", "alpha", "beta"],
-    [(132, 0.05, 0.2)],
+    [(416, 0.05, 0.2)],
 )
 def test_find_minimum_detectable_effect_from_params(
     dataset_size: int,

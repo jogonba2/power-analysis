@@ -11,7 +11,13 @@ import pytest
 from power.compute_power import compute_power
 from power.types import PowerOutput
 
-from .test_power import data_generating_fn  # or wherever they live
+from .test_power import (
+    data_generating_fn,
+    effect_test_fn,
+    hypothesis_test_fn,
+    true_effect_fn,
+    true_prob_table,
+)
 
 
 @pytest.mark.parametrize("iterations", [5, 50, 500, 5000])
