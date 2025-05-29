@@ -19,7 +19,6 @@ from .test_power import (
     true_prob_table,
 )
 
-
 @pytest.mark.parametrize("iterations", [5, 50, 500, 5000])
 @pytest.mark.parametrize("alpha", [0.05])
 @pytest.mark.parametrize("seed", [13])

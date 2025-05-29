@@ -284,6 +284,7 @@ To do this, `power` provides the `find_minimum_detectable_effect` function. To u
 
 ```python
 from power.metrics import find_minimum_detectable_effect
+import numpy as np
 
 # Mandatory arguments
 dataset_size = 968
@@ -316,6 +317,7 @@ Instead of providing variances, you can also estimate the MDE for a fixed datase
 
 ```python
 from power.metrics import find_minimum_detectable_effect
+import numpy as np
 
 # Mandatory arguments
 dataset_size = 416
@@ -329,7 +331,7 @@ x_a = [0.1, 0.2, 0.3]
 x_b = [0.2, 0.4, 0.7]
 
 mde = find_minimum_detectable_effect(
-    dataset_size_from_data,
+    dataset_size=dataset_size,
     alpha=alpha,
     beta=beta,
     x_a=x_a,
@@ -337,5 +339,5 @@ mde = find_minimum_detectable_effect(
     k_a=k_a,
     k_b=k_b,
 )
-np.testing.assert_almost_equal(mde_from_data, mde, decimal=3)
+np.testing.assert_almost_equal(mde, 0.03, decimal=3)
 ```
