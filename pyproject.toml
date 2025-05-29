@@ -1,5 +1,5 @@
 [project]
-name = "power-analysis"
+name = "power"
 version = "0.1.0"
 description = "A Python package for computing statistical power analysis."
 readme = "README.md"
@@ -28,7 +28,8 @@ dependencies = [
     "statsmodels",
     "datasets",
     "plotnine",
-    "catalogue"
+    "catalogue",
+    "joblib"
 ]
 
 [project.optional-dependencies]

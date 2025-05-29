@@ -1,38 +1,32 @@
 """
-The test here is done thinking on McNemar test, but it is general enough to be extended to other statistics.
+This test compare the results of the simulation of the unpaired z-test
+against NormalIndPower's closed form solution; basically, it's a sanity
+check for the simulation code.
 """
 
 from functools import partial
 
 import numpy as np
 import pytest
+from statsmodels.stats.power import NormalIndPower
+from statsmodels.stats.proportion import proportion_effectsize
 
 from power.compute_power import compute_power
 from power.dgps import dgps
 from power.effects import effects
 from power.stats_tests import stats_tests
-from power.types import DGPParameters, PowerOutput
-
-
-@pytest.fixture
-def expected_output() -> PowerOutput:
-    return PowerOutput(
-        power=1.0,
-        mean_eff=np.float64(0.19336363636363635),
-        type_m=np.float64(0.9668182394450396),
-        type_s=np.float64(0.0),
-    )
+from power.types import DGPParameters
 
 
 @pytest.fixture
 def effect_test_fn():
-    return effects.get("effect::cohens_g")
+    return effects.get("effect::risk_difference")
 
 
 @pytest.fixture
 def hypothesis_test_fn(effect_test_fn):
     return partial(
-        stats_tests.get("stats_test::mcnemar"), effect_fn=effect_test_fn
+        stats_tests.get("stats_test::unpaired_z"), effect_fn=effect_test_fn
     )
 
 
@@ -43,21 +37,21 @@ def true_prob_table():
 
 @pytest.fixture
 def data_generating_fn(true_prob_table):
-    dgp_args = DGPParameters(true_prob_table=true_prob_table, dataset_size=1000)
+    dgp_args = DGPParameters(true_prob_table=true_prob_table, dataset_size=47)
     return partial(dgps.get("dgp::contingency_table"), dgp_args=dgp_args)
 
 
 @pytest.fixture
 def true_effect_fn(true_prob_table):
     return partial(
-        effects.get("effect::cohens_g"),
+        effects.get("effect::risk_difference"),
         true_prob_table=true_prob_table,
         sample=None,
-        dataset_size=true_prob_table.sum(),
+        dataset_size=47,
     )
 
 
-@pytest.mark.parametrize(["seed", "iterations", "alpha"], [(13, 11, 0.05)])
+@pytest.mark.parametrize(["seed", "iterations", "alpha"], [(42, 5000, 0.05)])
 def test_compute_power(
     data_generating_fn,
     hypothesis_test_fn,
@@ -65,7 +59,6 @@ def test_compute_power(
     iterations,
     alpha,
     seed,
-    expected_output,
 ):
     """
     ...
@@ -82,4 +75,15 @@ def test_compute_power(
         alpha,
         seed,
     )
-    assert expected_output == output
+
+    np.testing.assert_almost_equal(
+        actual=output.power,
+        desired=NormalIndPower(ddof=0).power(
+            effect_size=proportion_effectsize(0.5, 0.3),
+            nobs1=47,
+            alpha=0.05,
+            ratio=1,
+            alternative="two-sided",
+        ),
+        decimal=1,
+    )
