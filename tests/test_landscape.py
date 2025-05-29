@@ -1,8 +1,11 @@
 from functools import partial
+from itertools import product
 
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
+from statsmodels.stats.power import NormalIndPower
+from statsmodels.stats.proportion import proportion_effectsize
 from tqdm.auto import tqdm
 
 # Import the power analysis utility functions from the package
@@ -101,8 +104,7 @@ def make_probability_table(
     return table
 
 
-if __name__ == "__main__":
-    from itertools import product
+def test_landscape_code():
 
     # parameters
     num_simulations_per_sample = 1000
@@ -135,32 +137,50 @@ if __name__ == "__main__":
     test_effects = [
         ("stats_test::mcnemar", "effect::cohens_g"),
         ("stats_test::unpaired_z", "effect::risk_difference"),
+        ("sanity_check::unpaired_z", None),  # sanity check
     ]
 
     dfs = []
     for test, effect in test_effects:
-        tasks = (
-            delayed(compute_power_of_single_experiment)(
-                sample["prob_table"],
-                test,
-                effect,
-                sample["size"],
-                num_simulations_per_sample,
-                alpha,
-                seed,
+        if test == "sanity_check::unpaired_z":
+            # sanity check
+            powers = [
+                NormalIndPower(ddof=1).power(
+                    effect_size=proportion_effectsize(
+                        prop1=sample["prob_table"][0, 1],
+                        prop2=[sample["prob_table"][1, 0]],
+                    ),
+                    nobs1=sample["size"],
+                    alpha=alpha,
+                    ratio=1,
+                    alternative="two-sided",
+                )
+                for sample in probability_tables
+            ]
+            df = pd.DataFrame({"power": powers})
+        else:
+            tasks = (
+                delayed(compute_power_of_single_experiment)(
+                    sample["prob_table"],
+                    test,
+                    effect,
+                    sample["size"],
+                    num_simulations_per_sample,
+                    alpha,
+                    seed,
+                )
+                for sample in probability_tables
             )
-            for sample in probability_tables
-        )
 
-        powers = Parallel(n_jobs=-1, backend="multiprocessing")(
-            tqdm(
-                tasks,
-                total=len(probability_tables),
-                desc=f"Running {test} with {effect}",
+            powers = Parallel(n_jobs=-1, backend="multiprocessing")(
+                tqdm(
+                    tasks,
+                    total=len(probability_tables),
+                    desc=f"Running {test} with {effect}",
+                )
             )
-        )
 
-        df = pd.DataFrame(powers)
+            df = pd.DataFrame(powers)
         df["test"] = test
         dfs.append(df)
 
@@ -170,8 +190,8 @@ if __name__ == "__main__":
             pd.concat(
                 [
                     pd.DataFrame(probability_tables),
-                    pd.DataFrame(probability_tables),
-                ],
+                ]
+                * len(test_effects),
                 axis=0,
             ),
             pd.concat(dfs, axis=0),
@@ -239,4 +259,4 @@ if __name__ == "__main__":
 
     plt.suptitle("Power vs Δ (by dataset size)")
     plt.tight_layout(rect=[0, 0, 1, 1])  # adjust to fit title
-    plt.show()
+    plt.savefig("tests/debug-unpaired-z.png")

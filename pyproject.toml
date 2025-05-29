@@ -28,7 +28,8 @@ dependencies = [
     "statsmodels",
     "datasets",
     "plotnine",
-    "catalogue"
+    "catalogue",
+    "joblib"
 ]
 
 [project.optional-dependencies]
