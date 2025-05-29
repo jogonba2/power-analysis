@@ -39,7 +39,8 @@ dev = [
     "mypy",
     "isort",
     "autoflake",
-    "types-requests"
+    "types-requests",
+    "pytest-benchmark"
 ]
 
 [project.urls]

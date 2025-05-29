@@ -1,4 +1,3 @@
-# tests/test_compute_power_speed.py
 """
 Timing harness for `compute_power`.
 
@@ -12,10 +11,12 @@ import pytest
 from power.compute_power import compute_power
 from power.types import PowerOutput
 
-from .test import data_generating_fn  # or wherever they live
+from .test_power import data_generating_fn  # or wherever they live
 
 
-@pytest.mark.parametrize("iterations", [5, 10, 11])
+@pytest.mark.parametrize("iterations", [5, 50, 500, 5000])
+@pytest.mark.parametrize("alpha", [0.05])
+@pytest.mark.parametrize("seed", [13])
 def test_compute_power_benchmark(
     benchmark,
     iterations,
