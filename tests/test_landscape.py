@@ -99,14 +99,14 @@ def make_probability_table(
 
 def test_landscape_code():
     # parameters
-    num_simulations_per_sample = 10_000
+    num_simulations_per_sample = 1_000
     alpha = 0.05
     seed = 20250530
 
     baseline_values = np.linspace(0.5, 0.9, 20)
     delta_values = np.linspace(0.01, 0.2, 20)
     agreement_values = np.linspace(0.0, 0.99, 20)
-    dataset_sizes = [10, 20, 50, 100]
+    dataset_sizes = [10, 20, 50, 100, 500]
     grid_for_samples = product(
         baseline_values, delta_values, agreement_values, dataset_sizes
     )
@@ -220,7 +220,11 @@ def test_landscape_code():
 
     # plot the different dataset sizes using subplots and shared axes
     fig, axes = plt.subplots(
-        nrows=1, ncols=4, figsize=(12, 3), sharex=True, sharey=True
+        nrows=1,
+        ncols=len(dataset_sizes),
+        figsize=(12, 3),
+        sharex=True,
+        sharey=True,
     )
     for ax, size in zip(axes, results["size"].unique()):
         subset = results[results["size"] == size]
