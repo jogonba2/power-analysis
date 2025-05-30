@@ -37,17 +37,17 @@ def true_prob_table():
 
 @pytest.fixture
 def data_generating_fn(true_prob_table):
-    dgp_args = DGPParameters(true_prob_table=true_prob_table, dataset_size=47)
-    return partial(dgps.get("dgp::contingency_table"), dgp_args=dgp_args)
+    dgp_params = DGPParameters(true_prob_table=true_prob_table, dataset_size=47)
+    return partial(
+        dgps.get("dgp::successes_and_failures"), dgp_params=dgp_params
+    )
 
 
 @pytest.fixture
 def true_effect_fn(true_prob_table):
+    dgp_params = DGPParameters(true_prob_table=true_prob_table, dataset_size=47)
     return partial(
-        effects.get("effect::risk_difference"),
-        true_prob_table=true_prob_table,
-        sample=None,
-        dataset_size=47,
+        effects.get("effect::risk_difference"), dgp_params=dgp_params
     )
 
 

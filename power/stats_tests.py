@@ -11,49 +11,47 @@ stats_tests = catalogue.create("power", "stats_tests")
 
 @stats_tests.register("stats_test::mcnemar")
 def mcnemar_test(
-    args: StatsTestParameters, effect_fn: Callable
+    test_params: StatsTestParameters, effect_fn: Callable
 ) -> StatsTestOutput:
     """
     Runs the statistical test and returns p value and effect.
     """
-
-    p_value = mcnemar(table=args.simulated_sample, exact=args.exact).pvalue
+    data = test_params.simulated_dataset.data
+    # check if b + c is 0, if so, we cannot run the test
+    if data[0, 1] + data[1, 0] == 0:
+        return StatsTestOutput(p_value=float("nan"), effect=float("nan"))
+    p_value = mcnemar(
+        table=data,
+        exact=test_params.exact,
+    ).pvalue  # type: ignore
     # This is one of many ways of doing this. Now we are doing (a-b)/N
     # We have to think how to parameterize this because it could be another fn at some point
-    effect = effect_fn(
-        sample=args.simulated_sample,
-        true_prob_table=None,
-        dataset_size=args.dataset_size,
-    )
+    effect = effect_fn(sample=test_params.simulated_dataset)
     return StatsTestOutput(p_value=p_value, effect=effect)
 
 
 @stats_tests.register("stats_test::unpaired_z")
 def unpaired_ztest(
-    args: StatsTestParameters, effect_fn: Callable
+    test_params: StatsTestParameters, effect_fn: Callable
 ) -> StatsTestOutput:
     """
     Runs the statistical test and returns p value and effect.
     """
-
-    count = [
-        args.simulated_sample[:, 1:].sum(),
-        args.simulated_sample[1:, :].sum(),
-    ]
-
-    nobs = [args.dataset_size, args.dataset_size]
-
     # zstat, pvalue
+    count = test_params.simulated_dataset.data
+    if (
+        count.sum() == 0
+        or count.sum() == test_params.simulated_dataset.dataset_size.sum()
+    ):
+        # If there are no successes or all successes, the std would be 0 and dont run the test
+        return StatsTestOutput(p_value=float("nan"), effect=float("nan"))
     _, p_value = proportions_ztest(
-        count=count, nobs=nobs, alternative="two-sided"
+        count=test_params.simulated_dataset.data,
+        nobs=test_params.simulated_dataset.dataset_size,
+        alternative="two-sided",
     )
 
-    # TODO: Discuss with Desi what effects should be used (+ signature) for the unpaired ztest
-    effect = effect_fn(
-        sample=args.simulated_sample,
-        true_prob_table=None,
-        dataset_size=args.dataset_size,
-    )
+    effect = effect_fn(sample=test_params.simulated_dataset)
     return StatsTestOutput(p_value=p_value, effect=effect)
 
 

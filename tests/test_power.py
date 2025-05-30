@@ -43,17 +43,19 @@ def true_prob_table():
 
 @pytest.fixture
 def data_generating_fn(true_prob_table):
-    dgp_args = DGPParameters(true_prob_table=true_prob_table, dataset_size=1000)
-    return partial(dgps.get("dgp::contingency_table"), dgp_args=dgp_args)
+    dgp_params = DGPParameters(
+        true_prob_table=true_prob_table, dataset_size=1000
+    )
+    return partial(dgps.get("dgp::contingency_table"), dgp_params=dgp_params)
 
 
 @pytest.fixture
 def true_effect_fn(true_prob_table):
     return partial(
         effects.get("effect::cohens_g"),
-        true_prob_table=true_prob_table,
-        sample=None,
-        dataset_size=true_prob_table.sum(),
+        dgp_params=DGPParameters(
+            true_prob_table, dataset_size=true_prob_table.sum()
+        ),
     )
 
 
