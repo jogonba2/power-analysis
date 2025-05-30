@@ -46,10 +46,7 @@ def compute_power(
         effect for effect, pval in zip(effects, p_values) if pval <= alpha
     ]
 
-    power = sum(
-        1 for effect in significant_effects if np.sign(effect) == true_sign
-    )
-    power /= iterations
+    power = len(significant_effects) / iterations
 
     # mean effect across all effects (not just the significant ones)
     # TODO: is this what we want? Or do we neeed to average only the significant effects?
