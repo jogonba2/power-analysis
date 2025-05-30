@@ -18,6 +18,7 @@ from power.types import DGPParameters, PowerOutput
 
 def compute_power_of_single_experiment(
     true_prob_table: np.ndarray,
+    dgp: str,
     test: str,
     effect: str,
     dataset_size: int,
@@ -26,15 +27,12 @@ def compute_power_of_single_experiment(
     seed: int,
 ):
     # Package the true probability table and dataset size into DGPParameters
-    dgp_args = DGPParameters(
+    dgp_params = DGPParameters(
         true_prob_table=true_prob_table, dataset_size=dataset_size
     )
 
     try:
-        # Selects a specific DGP variant: a contingency table generator
-        data_generating_fn = partial(
-            dgps.get("dgp::contingency_table"), dgp_args=dgp_args
-        )
+        data_generating_fn = partial(dgps.get(dgp), dgp_params=dgp_params)
     except ValueError:
         return PowerOutput(np.nan, np.nan, np.nan, np.nan)
 
@@ -45,12 +43,7 @@ def compute_power_of_single_experiment(
     statistical_test_fn = partial(stats_tests.get(test), effect_fn=effect_fn)
 
     # Prepare the function to compute the *true* effect size for benchmarking
-    true_effect_fn = partial(
-        effect_fn,
-        true_prob_table=true_prob_table,
-        sample=None,
-        dataset_size=dataset_size,
-    )
+    true_effect_fn = partial(effect_fn, dgp_params=dgp_params)
 
     # Compute statistical power and related metrics using simulation
     power = compute_power(
@@ -105,16 +98,15 @@ def make_probability_table(
 
 
 def test_landscape_code():
-
     # parameters
     num_simulations_per_sample = 1000
     alpha = 0.05
-    seed = 123
+    seed = 20250530
 
-    baseline_values = np.linspace(0.5, 0.9, 10)
-    delta_values = np.linspace(0.01, 0.3, 50)
-    agreement_values = np.linspace(0.0, 0.99, 50)
-    dataset_sizes = [50, 100, 500, 1000]
+    baseline_values = np.linspace(0.5, 0.9, 20)
+    delta_values = np.linspace(0.01, 0.2, 20)
+    agreement_values = np.linspace(0.0, 0.99, 20)
+    dataset_sizes = [10, 20, 50, 100]
     grid_for_samples = product(
         baseline_values, delta_values, agreement_values, dataset_sizes
     )
@@ -134,18 +126,23 @@ def test_landscape_code():
             }
         )
     print(f"{len(probability_tables)} valid probability tables generated.")
-    test_effects = [
-        ("stats_test::mcnemar", "effect::cohens_g"),
-        ("stats_test::unpaired_z", "effect::risk_difference"),
-        ("sanity_check::unpaired_z", None),  # sanity check
+    dgp_test_effects = [
+        ("dgp::contingency_table", "stats_test::mcnemar", "effect::cohens_g"),
+        (
+            "dgp::successes_and_failures",
+            "stats_test::unpaired_z",
+            "effect::risk_difference",
+        ),
+        (None, "sanity_check::unpaired_z", None),  # sanity check
     ]
 
     dfs = []
-    for test, effect in test_effects:
+    for dgp, test, effect in dgp_test_effects:
         if test == "sanity_check::unpaired_z":
             # sanity check
             powers = [
-                NormalIndPower(ddof=1).power(
+                # ddof is 0 by default, let's keep it like this
+                NormalIndPower(ddof=0).power(
                     # from docs: "standardized effect size, difference between the two means divided
                     # by the standard deviation. effect size has to be positive"
                     effect_size=proportion_effectsize(
@@ -163,15 +160,16 @@ def test_landscape_code():
         else:
             tasks = (
                 delayed(compute_power_of_single_experiment)(
-                    sample["prob_table"],
-                    test,
-                    effect,
-                    sample["size"],
-                    num_simulations_per_sample,
-                    alpha,
-                    seed,
+                    true_prob_table=sample["prob_table"],
+                    dgp=dgp,
+                    test=test,
+                    effect=effect,
+                    dataset_size=sample["size"],
+                    iterations=num_simulations_per_sample,
+                    alpha=alpha,
+                    seed=seed + i,
                 )
-                for sample in probability_tables
+                for i, sample in enumerate(probability_tables)
             )
 
             powers = Parallel(n_jobs=-1, backend="multiprocessing")(
@@ -193,7 +191,7 @@ def test_landscape_code():
                 [
                     pd.DataFrame(probability_tables),
                 ]
-                * len(test_effects),
+                * len(dgp_test_effects),
                 axis=0,
             ),
             pd.concat(dfs, axis=0),
@@ -232,17 +230,12 @@ def test_landscape_code():
             ax.plot(
                 g["delta"],
                 g["power"],
-                # marker="o",
                 label=test_name,
-                # alpha=0.7,
             )
         ax.set_title(f"Dataset size: {size}")
         ax.grid(True)
-    # axes[0].set_ylabel("Estimated power")
-    # x axis title for the entire figure
 
-    # ax.legend(title="Test")
-    # global labels
+    # global axis labels
     fig.text(0.5, -0.03, "Δ (accuracy difference)", ha="center")  # x-axis
     fig.text(
         -0.01, 0.5, "Estimated power", va="center", rotation="vertical"
@@ -254,11 +247,16 @@ def test_landscape_code():
         handles,
         labels,
         title="Test",
-        loc="lower center",
-        bbox_to_anchor=(0.5, -0.25),
+        # loc="lower center",
+        # bbox_to_anchor=(0.5, -0.1),
         ncol=len(labels),
     )
 
     # plt.suptitle("Power vs Δ (by dataset size)")
+    # plt.tight_layout(rect=[0, 0.05, 1, 0.98])  # adjust to fit title
     plt.savefig("tests/debug-unpaired-z.png")
-    plt.tight_layout(rect=[0, 0, 1, 1])  # adjust to fit title
+
+
+if __name__ == "__main__":
+    # run
+    test_landscape_code()
