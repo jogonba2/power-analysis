@@ -255,8 +255,3 @@ def test_landscape_code():
     # plt.suptitle("Power vs Δ (by dataset size)")
     # plt.tight_layout(rect=[0, 0.05, 1, 0.98])  # adjust to fit title
     plt.savefig("tests/debug-unpaired-z.png")
-
-
-if __name__ == "__main__":
-    # run
-    test_landscape_code()
