@@ -99,7 +99,7 @@ def make_probability_table(
 
 def test_landscape_code():
     # parameters
-    num_simulations_per_sample = 1000
+    num_simulations_per_sample = 10_000
     alpha = 0.05
     seed = 20250530
 

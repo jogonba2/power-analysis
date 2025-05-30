@@ -57,8 +57,11 @@ def risk_difference(
     if dgp_params is not None:
         return dgp_params.success_probs[0] - dgp_params.success_probs[1]
     else:
-        assert sample is not None
-        assert len(sample.dataset_size) == 2
+        assert (
+            sample is not None
+            and isinstance(sample.dataset_size, np.ndarray)
+            and len(sample.dataset_size) == 2
+        )
         return (
             sample.data[0] / sample.dataset_size[0]
             - sample.data[1] / sample.dataset_size[1]
