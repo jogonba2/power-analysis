@@ -30,4 +30,4 @@ jobs:
         pip install .
     - name: Test with pytest
       run: |
-        pytest tests/test.py tests/test_metrics.py
+        pytest tests/test_power.py tests/test_metrics.py
