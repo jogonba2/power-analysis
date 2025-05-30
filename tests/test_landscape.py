@@ -146,9 +146,11 @@ def test_landscape_code():
             # sanity check
             powers = [
                 NormalIndPower(ddof=1).power(
+                    # from docs: "standardized effect size, difference between the two means divided
+                    # by the standard deviation. effect size has to be positive"
                     effect_size=proportion_effectsize(
-                        prop1=sample["prob_table"][0, 1],
-                        prop2=[sample["prob_table"][1, 0]],
+                        prop1=sample["prob_table"][:, 1].sum(),
+                        prop2=sample["prob_table"][1:, :].sum(),
                     ),
                     nobs1=sample["size"],
                     alpha=alpha,
@@ -257,6 +259,6 @@ def test_landscape_code():
         ncol=len(labels),
     )
 
-    plt.suptitle("Power vs Δ (by dataset size)")
-    plt.tight_layout(rect=[0, 0, 1, 1])  # adjust to fit title
+    # plt.suptitle("Power vs Δ (by dataset size)")
     plt.savefig("tests/debug-unpaired-z.png")
+    plt.tight_layout(rect=[0, 0, 1, 1])  # adjust to fit title
