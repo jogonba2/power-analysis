@@ -30,8 +30,12 @@ mcnmear = df[df.test == 'stats_test::mcnemar']
         name="N",
     )
     + pn.guides(color=pn.guide_legend(reverse=True))
-).save("fig3-cardetal-mcnmear.png")
-
+).save(
+    "fig3-cardetal-mcnmear.pdf",
+    width=6,
+    height=4,
+    units='in',
+    dpi=300)
 
 unpaired = df[df.test == 'stats_test::unpaired_z']
 (
