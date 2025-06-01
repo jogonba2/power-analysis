@@ -5,6 +5,8 @@
     </a>
 </p>
 
+[![Python application](https://github.com/jogonba2/power-analysis/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/jogonba2/power-analysis/actions/workflows/python-app.yml)
+
 <h3 align="center">
     <p><b>Supporting NLP researchers in making statistically informed evaluation decisions</b></p>
 </h3>
