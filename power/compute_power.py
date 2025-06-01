@@ -24,16 +24,18 @@ def compute_power(
         )
 
     rng = np.random.default_rng(seed=seed)
+    # print("seed", seed)
     p_values, effects = [], []
 
     for _ in range(iterations):
         # simulate a dataset (sample) from the given DGP:
-        simulated_sample = data_generating_fn(rng=rng)
-        test_parameters = StatsTestParameters(
-            simulated_sample=simulated_sample.data, exact=False
-        )
+        simulated_dataset = data_generating_fn(rng=rng)
         # run the hypothesis test:
-        output = hypothesis_test_fn(test_parameters)
+        output = hypothesis_test_fn(
+            test_params=StatsTestParameters(
+                simulated_dataset=simulated_dataset, exact=False
+            )
+        )
         p_values.append(output.p_value)
         effects.append(output.effect)
 
@@ -46,10 +48,7 @@ def compute_power(
         effect for effect, pval in zip(effects, p_values) if pval <= alpha
     ]
 
-    power = sum(
-        1 for effect in significant_effects if np.sign(effect) == true_sign
-    )
-    power /= iterations
+    power = len(significant_effects) / len(effects)
 
     # mean effect across all effects (not just the significant ones)
     # TODO: is this what we want? Or do we neeed to average only the significant effects?

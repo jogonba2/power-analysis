@@ -1,14 +1,14 @@
 import catalogue
 import numpy as np
+from .types import DGPParameters, SimulatedDataset
 
 effects = catalogue.create("power", "effects")
 
 
 @effects.register("effect::cohens_g")
 def cohens_g(
-    true_prob_table: np.ndarray | None,
-    sample: np.ndarray | None,
-    dataset_size: int,
+    dgp_params: DGPParameters | None = None,
+    sample: SimulatedDataset | None = None,
 ) -> float:
     """
 
@@ -21,19 +21,22 @@ def cohens_g(
     Returns:
         float: ...
     """
-    assert (true_prob_table is None) != (
+    assert (dgp_params is None) != (
         sample is None
     ), "Exactly one of 'true_prob_table' or 'sample' must be provided, but not both or neither."
-    if true_prob_table is not None:
-        return true_prob_table[0, 1] - true_prob_table[1, 0]
-    return (sample[0, 1] - sample[1, 0]) / dataset_size
+    if dgp_params is not None:
+        return (
+            dgp_params.true_prob_table[0, 1] - dgp_params.true_prob_table[1, 0]
+        )
+    else:
+        assert sample is not None
+        return (sample.data[0, 1] - sample.data[1, 0]) / sample.dataset_size
 
 
 @effects.register("effect::risk_difference")
 def risk_difference(
-    true_prob_table: np.ndarray | None,
-    sample: np.ndarray | None,
-    dataset_size: int,
+    dgp_params: DGPParameters | None = None,
+    sample: SimulatedDataset | None = None,
 ) -> float:
     """
     Effect size for an *unpaired* z-test.
@@ -47,11 +50,19 @@ def risk_difference(
     Returns:
         float: ...
     """
-    assert (true_prob_table is None) != (
+    assert (dgp_params is None) != (
         sample is None
     ), "Exactly one of 'true_prob_table' or 'sample' must be provided, but not both or neither."
-    data = true_prob_table if true_prob_table is not None else sample
-    number_of_successes_model_a = data[:, 1].sum()
-    number_of_successes_model_b = data[1:, :].sum()
-    diff = number_of_successes_model_a - number_of_successes_model_b
-    return diff / dataset_size
+
+    if dgp_params is not None:
+        return dgp_params.success_probs[0] - dgp_params.success_probs[1]
+    else:
+        assert (
+            sample is not None
+            and isinstance(sample.dataset_size, np.ndarray)
+            and len(sample.dataset_size) == 2
+        )
+        return (
+            sample.data[0] / sample.dataset_size[0]
+            - sample.data[1] / sample.dataset_size[1]
+        )
