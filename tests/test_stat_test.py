@@ -85,5 +85,5 @@ def test_compute_power(
             ratio=1,
             alternative="two-sided",
         ),
-        decimal=1,
+        decimal=2,
     )

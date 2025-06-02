@@ -1,5 +1,6 @@
 import catalogue
 import numpy as np
+
 from .types import DGPParameters, SimulatedDataset
 
 effects = catalogue.create("power", "effects")
