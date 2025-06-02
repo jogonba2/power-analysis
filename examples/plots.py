@@ -14,7 +14,7 @@ df = df[["power", "size", "agreement", "delta", "baseline", "test"]]
 
 df = df.dropna()
 
-mcnmear = df[df.test == 'stats_test::mcnemar']
+mcnmear = df[df.test == "stats_test::mcnemar"]
 
 (
     pn.ggplot(mcnmear, pn.aes(x="delta", y="power", color="factor(size)"))
@@ -30,14 +30,9 @@ mcnmear = df[df.test == 'stats_test::mcnemar']
         name="N",
     )
     + pn.guides(color=pn.guide_legend(reverse=True))
-).save(
-    "fig3-cardetal-mcnmear.pdf",
-    width=6,
-    height=4,
-    units='in',
-    dpi=300)
+).save("fig3-cardetal-mcnmear.pdf", width=6, height=4, units="in", dpi=300)
 
-unpaired = df[df.test == 'stats_test::unpaired_z']
+unpaired = df[df.test == "stats_test::unpaired_z"]
 (
     pn.ggplot(unpaired, pn.aes(x="delta", y="power", color="factor(size)"))
     + pn.stat_summary(fun_y=np.mean, geom="line", size=1, alpha=0.9)
