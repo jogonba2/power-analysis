@@ -87,7 +87,7 @@ def test_find_minimum_detectable_effect_from_params(
     ["dataset_size", "alpha", "beta"],
     [(416, 0.05, 0.2)],
 )
-def test_find_minimum_detectable_effect_from_params(
+def test_find_minimum_detectable_effect_from_lists(
     dataset_size: int,
     alpha: float,
     beta: float,
