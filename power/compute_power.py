@@ -24,29 +24,25 @@ def compute_power(
         )
 
     rng = np.random.default_rng(seed=seed)
-    # print("seed", seed)
-    p_values, effects = [], []
 
-    for _ in range(iterations):
-        # simulate a dataset (sample) from the given DGP:
+    p_values = np.empty(iterations, dtype=float)
+    effects = np.empty(iterations, dtype=float)
+
+    for i in range(iterations):
         simulated_dataset = data_generating_fn(rng=rng)
-        # run the hypothesis test:
-        output = hypothesis_test_fn(
+        out = hypothesis_test_fn(
             test_params=StatsTestParameters(
                 simulated_dataset=simulated_dataset, exact=False
             )
         )
-        p_values.append(output.p_value)
-        effects.append(output.effect)
-
-    p_values = np.array(p_values)
-    effects = np.array(effects)
+        p_values[i] = out.p_value
+        effects[i] = out.effect
 
     true_sign = np.sign(true_effect) if not np.isnan(true_effect) else 0
     # filter the significant effects
-    significant_effects = [
-        effect for effect, pval in zip(effects, p_values) if pval <= alpha
-    ]
+    significance_mask = p_values <= alpha
+
+    significant_effects = effects[significance_mask]
 
     power = len(significant_effects) / len(effects)
 
@@ -58,14 +54,14 @@ def compute_power(
         np.mean(
             [abs(effect) / abs(true_effect) for effect in significant_effects]
         ).item()
-        if significant_effects and true_effect != 0
+        if significant_effects.any() and true_effect != 0
         else np.nan
     )
     type_s = (
         np.mean(
             [np.sign(effect) != true_sign for effect in significant_effects]
         ).item()
-        if significant_effects
+        if significant_effects.any()
         else np.nan
     )
 
