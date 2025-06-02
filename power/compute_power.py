@@ -10,7 +10,7 @@ def compute_power(
     data_generating_fn,
     hypothesis_test_fn,
     true_effect_fn,
-    iterations: int = 100,
+    iterations: int = 1_000,
     alpha: float = 0.05,
     seed: int = 42,
 ):

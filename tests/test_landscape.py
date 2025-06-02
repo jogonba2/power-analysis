@@ -65,7 +65,7 @@ def compute_power_of_single_experiment(
 def test_landscape_code(request):
     # parameters
     is_fast = "fast" in request.node.keywords
-    num_simulations_per_sample = 10 if is_fast else 1_000
+    num_simulations_per_sample = 10 if is_fast else 5_000
     alpha = 0.05
     seed = 20250530
 
