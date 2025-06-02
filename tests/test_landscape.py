@@ -3,6 +3,7 @@ from itertools import product
 
 import numpy as np
 import pandas as pd
+import plotnine as pn
 from joblib import Parallel, delayed
 from statsmodels.stats.power import NormalIndPower
 from statsmodels.stats.proportion import proportion_effectsize
@@ -199,63 +200,36 @@ def test_landscape_code():
         axis=1,
     )
 
-    #
-    averaged = results.groupby(["delta", "test"], as_index=False)[
-        "power"
-    ].mean()
+    results.to_csv("tests/results.csv.gz", compression="gzip")
 
-    # Plotting the results
-    import matplotlib.pyplot as plt
 
-    plt.figure(figsize=(6, 4))
-    for test_name, g in averaged.groupby("test"):
-        plt.plot(g["delta"], g["power"], marker="o", label=test_name)
-
-    plt.xlabel("Delta (accuracy difference)")
-    plt.ylabel("Statistical power")
-    plt.title("Power vs Δ (averaged over baseline, agreement, size)")
-    plt.legend(title="Test")
-    plt.grid(True)
-    plt.tight_layout()
-
-    # plot the different dataset sizes using subplots and shared axes
-    fig, axes = plt.subplots(
-        nrows=1,
-        ncols=len(dataset_sizes),
-        figsize=(12, 3),
-        sharex=True,
-        sharey=True,
-    )
-    for ax, size in zip(axes, results["size"].unique()):
-        subset = results[results["size"] == size]
-        # average across the baseline and agreement parameters
-        subset = subset.groupby(["delta", "test"], as_index=False).mean()
-        for test_name, g in subset.groupby("test"):
-            ax.plot(
-                g["delta"],
-                g["power"],
-                label=test_name,
-            )
-        ax.set_title(f"Dataset size: {size}")
-        ax.grid(True)
-
-    # global axis labels
-    fig.text(0.5, -0.03, "Δ (accuracy difference)", ha="center")  # x-axis
-    fig.text(
-        -0.01, 0.5, "Estimated power", va="center", rotation="vertical"
-    )  # y-axis
-
-    # one legend (take handles/labels from the last axis that was plotted)
-    handles, labels = axes[-1].get_legend_handles_labels()
-    fig.legend(
-        handles,
-        labels,
-        title="Test",
-        # loc="lower center",
-        # bbox_to_anchor=(0.5, -0.1),
-        ncol=len(labels),
+def test_plots():
+    df = pd.read_csv("tests/results.csv.gz", compression="gzip", index_col=0)
+    df["prob_table"] = df.prob_table.apply(
+        lambda s: np.fromstring(
+            s.replace("\n", " ").replace("[", "").replace("]", ""), sep=" "
+        ).reshape(-1, 2)
     )
 
-    # plt.suptitle("Power vs Δ (by dataset size)")
-    # plt.tight_layout(rect=[0, 0.05, 1, 0.98])  # adjust to fit title
-    plt.savefig("tests/debug-unpaired-z.png")
+    df = df[df.delta <= 0.2]
+
+    df = df[["power", "size", "agreement", "delta", "baseline", "test"]]
+
+    df = df.dropna()
+
+    (
+        pn.ggplot(df, pn.aes(x="delta", y="power", color="test"))
+        + pn.stat_summary(fun_y=np.mean, geom="line", size=1, alpha=0.9)
+        + pn.geom_hline(yintercept=0.8, linetype="dashed", color="grey")
+        + pn.facet_grid(cols="size")
+        + pn.scale_x_continuous(limits=(0, 0.2), breaks=[0.1, 0.2])
+        + pn.labs(
+            x="Δ accuracy", y="Estimated power", title="Power vs Δ", color="N"
+        )
+        + pn.theme_seaborn()
+        + pn.theme(
+            legend_direction="horizontal"
+        )  # Makes it a horizontal legend
+        + pn.theme(legend_position="top")
+        + pn.guides(color=pn.guide_legend(reverse=True))
+    ).save("debug-unpaired-z-2.png", width=12, height=8, units="in", dpi=300)
