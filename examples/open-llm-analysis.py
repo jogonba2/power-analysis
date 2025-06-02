@@ -5,29 +5,34 @@ import datasets as ds
 import pandas as pd
 import plotnine as pn
 from joblib import Parallel, delayed
+from tqdm import tqdm
 
 from power.utils import estimate_power_from_accuracy
 
 DATASETS = {
-    "IFEval": 541,
     "BBH": 6511,
+    "GPQA": 1252,
+    "IFEval": 541,
     "MATH Lvl 5": 2648,
     "MMLU-PRO": 9497,
-    "GPQA": 1252,
 }
 
-SIZES = ["small", "medium", "big"]
+SIZES = ["base", "medium", "large"]
+
+NUM_ITERATIONS_PER_SAMPLE = 1_000
+
+AGREEMENT = 0.8
+
 
 def compute_row(row):
     return estimate_power_from_accuracy(
         baseline_acc=row.baseline_acc,
         delta_acc=row.delta_acc,
-        agreement=0.99,
+        agreement=None,
         dataset_size=int(row.dataset_size),
         alpha=0.05,
-        iterations=1000,
+        iterations=NUM_ITERATIONS_PER_SAMPLE,
     ).__dict__
-
 
 
 def load_data():
@@ -43,9 +48,8 @@ def load_data():
     )
 
     dataset = dataset.map(
-        lambda x: {
-            "size_cat": SIZES[(x["#Params (B)"] > 1) + (x["#Params (B)"] > 10)]
-        }
+        lambda params: {"size_cat": SIZES[(params > 1) + (params > 10)]},
+        input_columns="#Params (B)",
     )
 
     df = (
@@ -61,31 +65,17 @@ def load_data():
 
     df["dataset_size"] = df["dataset"].map(DATASETS)
 
-    # 3. compute median‐deviations and pick the closest
     df["median"] = df.groupby(["size_cat", "dataset"])["score"].transform(
         "median"
     )
     df["abs_dev"] = (df["score"] - df["median"]).abs()
 
-    # 4. for each size+dataset, pick the row with minimal abs_dev
-    idx = df.groupby(["size_cat", "dataset"])["abs_dev"].idxmin()
-    df.loc[idx, ["size_cat", "dataset", "eval_name", "score"]].sort_values(
-        ["size_cat", "dataset"]
-    )
-
-    # median_performers
-
-    # 3. attach the median for each (size_cat, dataset)
-    df["median"] = df.groupby(["size_cat", "dataset"])["score"].transform(
-        "median"
-    )
-
     df["baseline_acc"] = df["median"] / 100
 
     df["delta_acc"] = (df["score"] - df["median"]) / 100
 
-
     return df.dropna()
+
 
 def plot_stats(df):
     (
@@ -105,29 +95,30 @@ def plot_stats(df):
     ).save("examples/post-hoc-stats.png")
 
 
-
 def plot_power(df):
     p = (
         pn.ggplot(
             df,
-            pn.aes(x="dataset", y="dev", colour="power_bin", size="abs_dev"),
+            pn.aes(x="dataset", y="dev", colour="power_bin"),
         )
         # median reference
         + pn.geom_hline(yintercept=0, linetype="dashed")
         # every model as a point
-        + pn.geom_jitter(width=0.25, height=0, alpha=0.75)
+        + pn.geom_jitter(width=0.25, height=0.01, alpha=0.75)
         # one panel per size bucket
         + pn.facet_wrap("~size_cat", scales="free_y")
         # nicer scales
         + pn.scale_colour_manual(
-            name="Worst-case power",
-            values={"< 50 %": "#d73027", "50–80 %": "#fee08b", "≥ 80 %": "#1a9850"},
+            name="power",
+            values={
+                "< 50 %": "#d73027",
+                "50–80 %": "#fee08b",
+                "≥ 80 %": "#1a9850",
+            },
         )
-        + pn.scale_size_continuous(name="Δ (%)", range=[1, 4])
         # labels & theme
         + pn.labs(
-            title="All models, deviations from size-bucket medians",
-            subtitle="Colour = worst-case power, size = abs deviation (percentage points)",
+            title="Power Analysis of Open LLM Benchmark",
             x="",
             y="Δ",
         )
@@ -142,6 +133,7 @@ def plot_power(df):
 
     p.save("examples/post-hoc-analysis.png")
 
+
 if __name__ == "__main__":
     df = load_data()
 
@@ -151,8 +143,12 @@ if __name__ == "__main__":
 
     # Parallel loop over DataFrame rows
     results = Parallel(n_jobs=-1)(
-        delayed(compute_row)(row) for _, row in df.iterrows()
+        delayed(compute_row)(row)
+        for _, row in tqdm(
+            df.iterrows(), total=len(df), desc="Estimating power"
+        )
     )
+    tqdm(df.iterrows(), total=len(df), desc="Estimating power")
 
     # # concat results
     df = pd.concat([df, pd.DataFrame(results, index=df.index)], axis=1)
@@ -168,4 +164,3 @@ if __name__ == "__main__":
     df = df.dropna()
 
     plot_power(df)
-
