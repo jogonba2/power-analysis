@@ -14,7 +14,9 @@ from .types import DGPParameters
 def make_probability_table(
     baseline_acc: float = 0.5,  # accuracy of the baseline model (Model 1/A)
     delta_acc: float = 0.1,  # accuracy difference between Model 1 and Model 2, \theta_B - baseline_acc
-    agreement_rate: float = 0.8,  # agreement rate between the two models (Model 1 and Model 2)
+    agreement_rate: (
+        float | None
+    ) = 0.8,  # agreement rate between the two models (Model 1 and Model 2)
 ) -> np.ndarray:
     """
     Returns a 2x2 probability table representing the joint distribution of two models predictions.
@@ -31,11 +33,30 @@ def make_probability_table(
             table.diagonal.sum() = agreement_rate
     """
     # p11 is the probability that both models are correct
-    p11 = (agreement_rate + 2 * baseline_acc + delta_acc - 1) / 2
-    p10 = baseline_acc - p11
-    p01 = baseline_acc + delta_acc - p11
-    p00 = agreement_rate - p11
-    probs = np.array([p00, p01, p10, p11])
+    if agreement_rate is not None:
+        p11 = (agreement_rate + 2 * baseline_acc + delta_acc - 1) / 2
+        p10 = baseline_acc - p11
+        p01 = baseline_acc + delta_acc - p11
+        p00 = agreement_rate - p11
+        probs = np.array([p00, p01, p10, p11])
+    else:
+        acc1 = baseline_acc
+        acc2 = baseline_acc + delta_acc
+        if acc1 + acc2 <= 1.0:
+            # Case A: no overlapping “both correct” mass possible; set p11 = 0
+            p11 = 0.0
+            p10 = acc1  # Pr(model1 correct, model2 wrong)
+            p01 = acc2  # Pr(model1 wrong, model2 correct)
+            p00 = 1.0 - acc1 - acc2
+        else:
+            # Case B: some overlap is forced; set p11 = acc1 + acc2 - 1
+            p11 = acc1 + acc2 - 1.0
+            p10 = acc1 - p11  # = acc1 - (acc1 + acc2 - 1) = 1 - acc2
+            p01 = acc2 - p11  # = acc2 - (acc1 + acc2 - 1) = 1 - acc1
+            p00 = 0.0
+
+        probs = np.array([p00, p01, p10, p11], dtype=float)
+
     if np.any(probs < 0) or not np.isclose(probs.sum(), 1.0):
         raise ValueError(
             "The provided parameters do not yield a valid probability table."
@@ -45,7 +66,8 @@ def make_probability_table(
     # some more sanity checks
     assert np.isclose(table[1, :].sum(), baseline_acc), "Error!"
     assert np.isclose(table[:, 1].sum(), baseline_acc + delta_acc), "Error!"
-    assert np.isclose(table.diagonal().sum(), agreement_rate), "Error!"
+    if agreement_rate is not None:
+        assert np.isclose(table.diagonal().sum(), agreement_rate), "Error!"
 
     return table
 
@@ -66,7 +88,7 @@ def estimate_power_from_accuracy(
     Estimate statistical power given baseline and delta accuracy.
 
     Returns:
-        pd.Series with power, mean_effect, type_m, type_s
+        PowerOutput
     """
     try:
         prob_table = make_probability_table(baseline_acc, delta_acc, agreement)
