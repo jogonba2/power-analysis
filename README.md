@@ -1,11 +1,13 @@
 # ⚡ Power
-<p align="center">
-    <a href="LICENSE">
+<div align="center">
+    <a href="https://www.apache.org/licenses/LICENSE-2.0">
         <img alt="license" src="https://img.shields.io/badge/license-Apache_2.0-green">
     </a>
-</p>
+    <a href="https://github.com/jogonba2/power-analysis/actions/workflows/python-app.yml">
+        <img alt='test status badge' src="https://github.com/jogonba2/power-analysis/actions/workflows/python-app.yml/badge.svg?branch=main">
+    </a>
+</div>
 
-[![Python application](https://github.com/jogonba2/power-analysis/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/jogonba2/power-analysis/actions/workflows/python-app.yml)
 
 <h3 align="center">
     <p><b>Supporting NLP researchers in making statistically informed evaluation decisions</b></p>
