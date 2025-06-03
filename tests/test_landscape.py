@@ -4,6 +4,7 @@ from itertools import product
 import numpy as np
 import pandas as pd
 import plotnine as pn
+import pytest
 from joblib import Parallel, delayed
 from statsmodels.stats.power import NormalIndPower
 from statsmodels.stats.proportion import proportion_effectsize
@@ -13,6 +14,7 @@ from tqdm.auto import tqdm
 from power.compute_power import compute_power
 from power.dgps import dgps
 from power.effects import effects
+from power.metrics import make_probability_table
 from power.stats_tests import stats_tests
 from power.types import DGPParameters, PowerOutput
 
@@ -59,48 +61,11 @@ def compute_power_of_single_experiment(
     return power
 
 
-def make_probability_table(
-    baseline_acc: float = 0.5,  # accuracy of the baseline model (Model 1/A)
-    delta_acc: float = 0.1,  # accuracy difference between Model 1 and Model 2, \theta_B - baseline_acc
-    agreement_rate: float = 0.8,  # agreement rate between the two models (Model 1 and Model 2)
-) -> np.ndarray:
-    """
-    Returns a 2x2 probability table representing the joint distribution of two models predictions.
-    The table is structured as follows:
-        [
-            [p_both_incorrect, p_only_2_correct],
-            [p_only_1_correct, p_both_correct]
-        ]
-
-    where:
-      - the baseline model is model 1, so that accuracy_model1 = table[1, :].sum() = baseline_acc
-      - the second model, model 2, has accuracy_model2 = table[:, 1].sum() = baseline_acc + delta_acc
-      - the agreement rate is the sum of the probabilities of both models giving the same prediction, i.e.,
-            table.diagonal.sum() = agreement_rate
-    """
-    # p11 is the probability that both models are correct
-    p11 = (agreement_rate + 2 * baseline_acc + delta_acc - 1) / 2
-    p10 = baseline_acc - p11
-    p01 = baseline_acc + delta_acc - p11
-    p00 = agreement_rate - p11
-    probs = np.array([p00, p01, p10, p11])
-    if np.any(probs < 0) or not np.isclose(probs.sum(), 1.0):
-        raise ValueError(
-            "The provided parameters do not yield a valid probability table."
-        )
-
-    table = probs.reshape(2, 2)
-    # some more sanity checks
-    assert np.isclose(table[1, :].sum(), baseline_acc), "Error!"
-    assert np.isclose(table[:, 1].sum(), baseline_acc + delta_acc), "Error!"
-    assert np.isclose(table.diagonal().sum(), agreement_rate), "Error!"
-
-    return table
-
-
-def test_landscape_code():
+@pytest.mark.fast
+def test_landscape_code(request):
     # parameters
-    num_simulations_per_sample = 1_000
+    is_fast = "fast" in request.node.keywords
+    num_simulations_per_sample = 10 if is_fast else 5_000
     alpha = 0.05
     seed = 20250530
 

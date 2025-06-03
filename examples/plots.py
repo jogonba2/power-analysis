@@ -4,10 +4,6 @@ import plotnine as pn
 
 df = pd.read_csv("tests/results.csv.gz", compression="gzip", index_col=0)
 
-df["power"] = df.power.apply(eval)
-
-df["power"] = df.power.apply(lambda p: p[0] if not isinstance(p, float) else p)
-
 df["agreement"] = pd.cut(df.agreement, bins=2, labels=["low", "high"])
 
 df = df[["power", "size", "agreement", "delta", "baseline", "test"]]
@@ -30,7 +26,7 @@ mcnmear = df[df.test == "stats_test::mcnemar"]
         name="N",
     )
     + pn.guides(color=pn.guide_legend(reverse=True))
-).save("fig3-cardetal-mcnmear.pdf", width=6, height=4, units="in", dpi=300)
+).save("fig3-cardetal-mcnmear.png", width=6, height=4, units="in", dpi=300)
 
 unpaired = df[df.test == "stats_test::unpaired_z"]
 (
