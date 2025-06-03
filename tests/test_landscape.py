@@ -14,9 +14,9 @@ from tqdm.auto import tqdm
 from power.compute_power import compute_power
 from power.dgps import dgps
 from power.effects import effects
+from power.metrics import make_probability_table
 from power.stats_tests import stats_tests
 from power.types import DGPParameters, PowerOutput
-from power.utils import make_probability_table
 
 
 def compute_power_of_single_experiment(

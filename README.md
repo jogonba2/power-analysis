@@ -26,7 +26,7 @@ We provide a tour for practitioners, showing how the statistical power can be co
 
 ## 👨‍🏭 Practitioner tour 
 
-The statistical power can be computed just calling `classification_report` by providing the predictions of your models and the reference labels.
+The statistical power can be computed just calling `estimate_power_from_predictions` by providing the predictions of your models and the reference labels.
 
 Let's first load the dataset, the trained models, and predict the test set:
 
@@ -57,12 +57,12 @@ preds_B = [pred["label"] for pred in preds_B]
 references = test_set.features["label"].int2str(test_set["label"])
 ```
 
-Then, we only have to call `classification_report` by passing the model predictions and references, the number of iterations for the simulation, the significance level, and a random seed for reproducibility. Users can also specify the data generation process, the statistical test, and the effect size function, as long as these are provided by `power`. By default, these are configured to the best suited ones for classification tasks. If you want to go deeper into these topics, please, read the tour for researchers.
+Then, we only have to call `estimate_power_from_predictions` by passing the model predictions and references, the number of iterations for the simulation, the significance level, and a random seed for reproducibility. Users can also specify the data generation process, the statistical test, and the effect size function, as long as these are provided by `power`. By default, these are configured to the best suited ones for classification tasks. If you want to go deeper into these topics, please, read the tour for researchers.
 
 ```python
-from power.metrics import classification_report
+from power.metrics import estimate_power_from_predictions
 
-power_report = classification_report(
+power_report = estimate_power_from_predictions(
     preds_A, preds_B, references, iterations=1000, alpha=0.05, seed=13
 )
 

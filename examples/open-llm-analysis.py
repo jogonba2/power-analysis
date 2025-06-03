@@ -7,7 +7,7 @@ import plotnine as pn
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
-from power.utils import estimate_power_from_accuracy
+from power.metrics import estimate_power_from_accuracy
 
 DATASETS = {
     "BBH": 6511,
