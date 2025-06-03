@@ -9,8 +9,9 @@ from .metrics import (
 
 __all__ = [
     "compute_power",
+    "estimate_power_from_accuracy",
     "estimate_power_from_predictions",
-    "estimate_power_from_accuracy" "find_dataset_size",
+    "find_dataset_size",
     "find_minimum_detectable_effect",
     "make_probability_table",
 ]
