@@ -3,7 +3,6 @@ class Task:
         """
         Fit the task with the provided dataset.
         """
-        raise NotImplementedError("This method should be implemented by subclasses.")
-
-    def compute_power(self):
-        ...
+        raise NotImplementedError(
+            "This method should be implemented by subclasses."
+        )

@@ -1,6 +1,17 @@
-from power.tasks import Task
+# TODO
+# check/think about this: are there more ways to generate tables from the same data?
 from itertools import product
+from typing import Optional
+
 import numpy as np
+from scipy import stats
+
+from power.tasks import Task
+from power.types import PowerOutput
+
+from ..estimator import PowerEstimator
+from ..types import PowerOutput
+
 
 def make_probability_table(
     baseline_acc: float = 0.5,  # accuracy of the baseline model (Model 1/A)
@@ -64,11 +75,12 @@ def make_probability_table(
 
 
 def make_dataset(
-        n_instances: int|list,
-        baseline_acc: float | list,
-        delta_acc: float | list,
-        agreement_rate: float | list | None = None,
-        seed: int = 42):
+    n_instances: int | list,
+    baseline_acc: float | list,
+    delta_acc: float | list,
+    agreement_rate: float | list | None = None,
+    seed: int = 42,
+):
 
     grid_for_samples = product(
         np.atleast_1d(baseline_acc),
@@ -98,8 +110,190 @@ def make_dataset(
 
 
 class BinaryClassification(Task):
+    def __init__(
+        self, n_iterations: int = 1000, n_jobs: int = 1, random_state: int = 42
+    ):
+        self.power_estimator = PowerEstimator(
+            dgp="dgp::contingency_table",
+            stat_test="stats_test::mcnemar",
+            effect="effect::cohens_g",
+            n_iterations=n_iterations,
+            n_jobs=n_jobs,
+            random_state=random_state,
+        )
+        self.fitted = False
+
     def fit(self, X, y=None):
         """
         Fit the task with the provided dataset.
         """
+        self.power_estimator.fit(X)
+        self.fitted = True
+        self.landscape_ = self.power_estimator.landscape_
 
+    def predict_from_score(
+        self,
+        baseline_acc: float,
+        delta_acc: float,
+        dataset_size: int,
+        agreement: float = 0.75,
+        alpha: float = 0.05,
+        iterations: int = 1000,
+        seed: int = 42,
+        dgp: str = "dgp::contingency_table",
+        test: str = "stats_test::mcnemar",
+        effect: str = "effect::cohens_g",
+    ) -> PowerOutput: ...
+    def predict_mde(self, n_instances: int):
+        # TODO ask Desi
+        # if landscape, check for self.fitted
+        # else, you can skip it
+        self._find_minimum_detectable_effect(...)
+
+    def predict_n(self, mde: float):
+        # TODO ask Desi
+        # if landscape, check for self.fitted
+        # else, you can skip it
+        self._find_dataset_size(...)
+
+    def _find_dataset_size(
+        self,
+        mde: float,
+        alpha: float = 0.05,
+        beta: float = 0.2,
+        k_a: int = 1,
+        k_b: int = 1,
+        x_a: Optional[list | np.ndarray] = None,
+        x_b: Optional[list | np.ndarray] = None,
+        var_a: Optional[float] = None,
+        var_b: Optional[float] = None,
+        omega: Optional[float] = None,
+    ) -> int:
+        """
+        Find the dataset size for a fixed Minimum Detectable Effect (MDE)
+        with a Type I error rate (alpha) and a Type II error rate (beta).
+
+        See Section 5. of https://arxiv.org/pdf/2411.00640 for more specific details.
+
+        This function can estimate the dataset size in two setups:
+
+        1. From data: you can provide `x_a` and `x_b` to estimate the dataset size required to find the provided MDE.
+                      Both `x_a` and `x_b` must be of shape (N,), containing previous evaluation data of models A and B.
+
+        2. From fixed parameters: you can fix `var_a`, `var_b` and `omega` at some sensible level. For instance,
+                                  `var_a=0`, `var_b=0`, and `omega=1/9` as shown in https://arxiv.org/pdf/2411.00640.
+
+        Therefore, do not provide `x_a` and `x_b` when providing `var_a`, `var_b`, and `omega` (and viceversa).
+
+        Args:
+            mde (float): minimum detectable effect you want to detect.
+            alpha (float): type I error rate. Default to 0.05.
+            beta (float): type II error rate. Default to 0.2.
+            k_a (int): number of answers from model A that will be sampled in a paired analysis. Default to 1.
+            k_b (int): number of answers from model B that will be sampled in a paired analysis. Default to 1.
+            x_a (Optional[list | np.ndarray]): previous evaluation data of model A.
+            x_b (Optional[list | np.ndarray]): previous evaluation data of model B.
+            var_a (Optional[float]): variance of model A accuracy.
+            var_b (Optional[float]): variance of model B accuracy.
+            omega (Optional[float]): defined as `var_a` - `var_b` - 2Cov(`x_a`, `x_b`)
+
+        Returns:
+            int: dataset size required to detect a MDE.
+        """
+
+        from_data = [x_a, x_b]
+        from_params = [var_a, var_b, omega]
+
+        data_provided = all(x is not None for x in from_data)
+        params_provided = all(x is not None for x in from_params)
+
+        assert (data_provided and not params_provided) or (
+            params_provided and not data_provided
+        ), "You must provide either (x_a, x_b) or (var_a, var_b, omega), not both or any."
+
+        if x_a is not None and x_b is not None:
+            var_a = np.var(x_a)
+            var_b = np.var(x_b)
+            cov_ab = np.cov(x_a, x_b)[0, 1]
+            omega = var_a + var_b - 2 * cov_ab
+
+        z_alpha = stats.norm.ppf(alpha / 2)
+        z_beta = stats.norm.ppf(beta)
+
+        num = ((z_alpha + z_beta) ** 2) * (
+            omega + (var_a / k_a) + (var_b / k_b)
+        )
+
+        return num // (mde**2)
+
+    def _find_minimum_detectable_effect(
+        self,
+        dataset_size: int,
+        alpha: float = 0.05,
+        beta: float = 0.2,
+        k_a: int = 1,
+        k_b: int = 1,
+        x_a: Optional[list | np.ndarray] = None,
+        x_b: Optional[list | np.ndarray] = None,
+        var_a: Optional[float] = None,
+        var_b: Optional[float] = None,
+        omega: Optional[float] = None,
+    ) -> float:
+        """
+        Find the Minimum Detectable Effect (MDE) for a fixed dataset size.
+        with a Type I error rate (alpha) and a Type II error rate (beta).
+
+        See Section 5. of https://arxiv.org/pdf/2411.00640 for more specific details.
+
+        This function can estimate the dataset size in two setups:
+
+        1. From data: you can provide `x_a` and `x_b` to estimate the dataset size required to find the provided MDE.
+                      Both `x_a` and `x_b` must be of shape (N,), containing previous evaluation data of models A and B.
+
+        2. From fixed parameters: you can fix `var_a`, `var_b` and `omega` at some sensible level. For instance,
+                                  `var_a=0`, `var_b=0`, and `omega=1/9` as shown in https://arxiv.org/pdf/2411.00640.
+
+        Therefore, do not provide `x_a` and `x_b` when providing `var_a`, `var_b`, and `omega` (and viceversa).
+
+        Args:
+            dataset_size (int): dataset size to find the minimum detectable effect.
+            alpha (float): type I error rate. Default to 0.05.
+            beta (float): type II error rate. Default to 0.2.
+            k_a (int): number of answers from model A that will be sampled in a paired analysis. Default to 1.
+            k_b (int): number of answers from model B that will be sampled in a paired analysis. Default to 1.
+            x_a (Optional[list | np.ndarray]): previous evaluation data of model A.
+            x_b (Optional[list | np.ndarray]): previous evaluation data of model B.
+            var_a (Optional[float]): variance of model A scores.
+            var_b (Optional[float]): variance of model B scores.
+            omega (Optional[float]): defined as `var_a` - `var_b` - 2Cov(`x_a`, `x_b`)
+
+        Returns:
+            float: MDE for your dataset size.
+        """
+
+        from_data = [x_a, x_b]
+        from_params = [var_a, var_b, omega]
+
+        data_provided = all(x is not None for x in from_data)
+        params_provided = all(x is not None for x in from_params)
+
+        assert (data_provided and not params_provided) or (
+            params_provided and not data_provided
+        ), "You must provide either (x_a, x_b) or (var_a, var_b, omega), not both or any."
+
+        if x_a is not None and x_b is not None:
+            var_a = np.var(x_a)
+            var_b = np.var(x_b)
+            cov_ab = np.cov(x_a, x_b)[0, 1]
+            omega = var_a + var_b - 2 * cov_ab
+
+        z_alpha = stats.norm.ppf(alpha / 2)
+        z_beta = stats.norm.ppf(beta)
+
+        return np.sqrt(
+            (
+                ((z_alpha + z_beta) ** 2)
+                * (omega + (var_a / k_a) + (var_b / k_b))
+            )
+            / dataset_size
+        )
