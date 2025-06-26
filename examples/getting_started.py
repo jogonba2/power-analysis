@@ -16,11 +16,20 @@ power_estimator = BinaryClassification(
 )
 
 
-# WIP
-power_estimator.predict_from_score(
-    baseline_acc=0.8, delta_acc=0.1, dataset_size=47, agreement=0.5
-)
-
 power_estimator.fit(simulated_dataset)
 
-print(power_estimator.landscape_)
+# score is what we have in things like benchmarks
+print(
+    power_estimator.predict_from_score(
+        baseline_acc=0.5, delta_acc=0.01, dataset_size=100, agreement=0.052105
+    )
+)
+
+print(
+    power_estimator.predict_mde(
+        n_instances=100, baseline=0.6, agreement=0.052105
+    )
+)
+
+
+print(power_estimator.landscape_.head())

@@ -1,10 +1,10 @@
-# TODO
-# check/think about this: are there more ways to generate tables from the same data?
 from itertools import product
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 from scipy import stats
+from scipy.spatial import distance
 
 from power.tasks import Task
 from power.types import PowerOutput
@@ -80,7 +80,7 @@ def make_dataset(
     delta_acc: float | list,
     agreement_rate: float | list | None = None,
     seed: int = 42,
-):
+) -> list[dict]:
 
     grid_for_samples = product(
         np.atleast_1d(baseline_acc),
@@ -129,32 +129,90 @@ class BinaryClassification(Task):
         """
         self.power_estimator.fit(X)
         self.fitted = True
-        self.landscape_ = self.power_estimator.landscape_
+        self.landscape_: pd.DataFrame = self.power_estimator.landscape_
 
     def predict_from_score(
         self,
         baseline_acc: float,
         delta_acc: float,
         dataset_size: int,
-        agreement: float = 0.75,
-        alpha: float = 0.05,
-        iterations: int = 1000,
-        seed: int = 42,
-        dgp: str = "dgp::contingency_table",
-        test: str = "stats_test::mcnemar",
-        effect: str = "effect::cohens_g",
-    ) -> PowerOutput: ...
-    def predict_mde(self, n_instances: int):
-        # TODO ask Desi
-        # if landscape, check for self.fitted
-        # else, you can skip it
-        self._find_minimum_detectable_effect(...)
+        agreement: float,
+    ) -> PowerOutput:
+        if not self.fitted:
+            raise ValueError(
+                "The model must be fitted before making predictions."
+            )
+        # given the landscape, find the closest scenario to the one given here
+        query = np.array([baseline_acc, delta_acc, agreement, dataset_size])
 
-    def predict_n(self, mde: float):
-        # TODO ask Desi
-        # if landscape, check for self.fitted
-        # else, you can skip it
-        self._find_dataset_size(...)
+        # find the closest scenario in the landscape
+        distances = self.landscape_[
+            ["baseline", "delta", "agreement", "size"]
+        ].apply(lambda row: distance.euclidean(row, query), axis=1)
+
+        closest_index = distances.idxmin()
+
+        return self.landscape_.iloc[closest_index]
+
+    def predict_from_predictions() -> PowerOutput: ...
+
+    def predict_mde(
+        self,
+        n_instances: int,
+        baseline: float,
+        agreement: float,
+        power: float = 0.8,
+    ) -> PowerOutput:
+        # TODO: standardize use of n_instances and size
+        # find mde, given n_instances, baseline_acc and agreement
+        if not self.fitted:
+            raise ValueError(
+                "The model must be fitted before making predictions."
+            )
+
+        query = "(size <= @n_instances) & (baseline <= @baseline) & (agreement <= @agreement) & (power >= @power)"
+
+        results = self.landscape_.query(expr=query)
+
+        results = results.sort_values(by="delta", ascending=False)
+
+        if results.empty:
+            return None
+
+        top_result = results.iloc[0]
+
+        return PowerOutput(
+            mde=top_result["delta"],
+            baseline=top_result["baseline"],
+            agreement=top_result["agreement"],
+            size=top_result["size"],
+            power=top_result["power"],
+        )
+
+    def predict_n(
+        self,
+        baseline: float,
+        delta: float,
+        agreement: float,
+        mde: float,
+        power: float = 0.8,
+    ) -> int:
+        # find n, given mde, baseline_acc and agreement
+        if not self.fitted:
+            raise ValueError(
+                "The model must be fitted before making predictions."
+            )
+
+        query = "baseline <= @baseline & delta <= @mde & agreement <= @agreement & power >= @power"
+
+        results = self.landscape_.query(expr=query)
+
+        results = results.sort_values(by="size", ascending=False)
+
+        if results.empty:
+            return None
+
+        return results.iloc[0]["size"]
 
     def _find_dataset_size(
         self,
