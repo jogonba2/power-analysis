@@ -13,6 +13,7 @@
     <p><b>Supporting NLP researchers in making statistically informed evaluation decisions</b></p>
 </h3>
 
+
 # 📖 What is this repo for?
 This repository contains the source code of a simulator to compute **statistical power** of evaluation experiments, that can help researchers addressing **post-hoc** and **pre-hoc** analyses.
 
@@ -345,3 +346,13 @@ mde = find_minimum_detectable_effect(
 )
 np.testing.assert_almost_equal(mde, 0.03, decimal=3)
 ```
+
+# Paper Plots
+
+To generate the plots in the paper:
+
+```
+python  examples/plots.py
+```
+
+This will read the `tests/simulations.csv.gz` file, with all the precomputed data.
