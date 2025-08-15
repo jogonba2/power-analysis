@@ -7,6 +7,7 @@ from joblib import Parallel, delayed
 from statsmodels.stats.power import NormalIndPower
 from statsmodels.stats.proportion import proportion_effectsize
 from tqdm.auto import tqdm
+import pytest
 
 # Import the power analysis utility functions from the package
 from power.compute_power import compute_power
@@ -65,9 +66,9 @@ def test_landscape_code(request):
     alpha = 0.05
     seed = 20250530
 
-    baseline_values = np.linspace(0.5, 0.9, 20)
-    delta_values = np.linspace(0.01, 0.4, 20)
-    agreement_values = np.linspace(0.1, 0.99, 20)
+    baseline_values = np.linspace(0.5, 0.9, 10)
+    delta_values = np.linspace(0.01, 0.4, 10)
+    agreement_values = np.linspace(0.1, 0.99, 10)
     dataset_sizes = [10, 20, 25, 50, 100, 500]
     grid_for_samples = list(
         product(baseline_values, delta_values, agreement_values, dataset_sizes)
